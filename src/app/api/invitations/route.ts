@@ -10,7 +10,13 @@ import { Resend } from 'resend';
 import { Role } from '@/lib/auth/permissions/roles';
 import { InvitationEmail } from '@/emails/InvitationEmail';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // Validation schema for the invitation request
 const inviteSchema = z.object({
@@ -132,9 +138,9 @@ export async function POST(request: NextRequest) {
         role: role as Role,
         token,
         status: 'pending',
-        expires,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        expires: expires.toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .returning();
     
@@ -149,20 +155,20 @@ export async function POST(request: NextRequest) {
       .where(eq(companies.id, companyId));
     
     // Send invitation email
-    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://summitfinance.app';
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://app.sigalix.net';
     const acceptUrl = `${baseUrl}/accept-invitation?token=${token}`;
 
-    const fromEmail = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'summit@kugie.app'}>`;
+    const fromEmail = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'noreply@sigalix.net'}>`
     const toEmail = email;
     
     // Send email using Resend
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: fromEmail,
       to: toEmail,
-      subject: `You've been invited to join ${company?.name || 'Kugie Summit'}`,
+      subject: `You've been invited to join ${company?.name || 'SIGALIX LABS'}`,
       react: InvitationEmail({
         inviterName: session.user.name || 'Team Admin',
-        companyName: company?.name || 'Kugie Summit',
+        companyName: company?.name || 'SIGALIX LABS',
         recipientName: name || undefined,
         role,
         acceptUrl,

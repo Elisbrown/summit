@@ -33,7 +33,7 @@ type QuoteDetailResponse = {
   tax: string | null;
   total: string;
   notes: string | null;
-  createdAt: Date;
+  createdAt: string;
   client: {
     id: number;
     name: string;
@@ -44,7 +44,7 @@ type QuoteDetailResponse = {
 
 // GET /api/quotes - List all quotes with pagination, sorting, and filtering
 export async function GET(request: NextRequest) {
-  return withAuth<QuoteResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
 
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/quotes - Create a new quote
 export async function POST(request: NextRequest) {
-  return withAuth<QuoteDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -268,8 +268,8 @@ export async function POST(request: NextRequest) {
         tax: taxAmount.toString(),
         total: total.toString(),
         notes,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
         softDelete: false
       };
       

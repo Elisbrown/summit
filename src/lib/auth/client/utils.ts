@@ -138,7 +138,7 @@ export async function saveLoginToken(clientId: number, email: string) {
     clientId,
     email,
     token,
-    expires,
+    expires: expires.toISOString(),
   });
 
   return token;
@@ -154,12 +154,12 @@ export async function verifyLoginToken(token: string) {
   if (!loginToken) return null;
   
   // Check if token has expired
-  if (new Date() > loginToken.expires || loginToken.usedAt) return null;
+  if (new Date() > new Date(loginToken.expires) || loginToken.usedAt) return null;
 
   // Mark token as used
   await db
     .update(clientLoginTokens)
-    .set({ usedAt: new Date() })
+    .set({ usedAt: new Date().toISOString() })
     .where(eq(clientLoginTokens.id, loginToken.id));
 
   return loginToken;

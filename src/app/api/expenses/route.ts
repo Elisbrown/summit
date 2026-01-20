@@ -22,7 +22,7 @@ type ErrorResponse = {
 
 // GET /api/expenses - List all expenses with pagination, sorting, and filtering
 export async function GET(request: NextRequest) {
-  return withAuth<ExpenseListResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
 
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/expenses - Create a new expense
 export async function POST(request: NextRequest) {
-  return withAuth<any | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -249,8 +249,8 @@ export async function POST(request: NextRequest) {
           status,
           recurring,
           nextDueDate: nextDueDate ? format(nextDueDate, 'yyyy-MM-dd') : null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           softDelete: false,
         })
         .returning();

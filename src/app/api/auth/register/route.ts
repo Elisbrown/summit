@@ -50,8 +50,8 @@ export async function POST(request: Request) {
       .insert(companies)
       .values({
         name: validatedData.companyName,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .returning({ id: companies.id });
 
@@ -68,8 +68,8 @@ export async function POST(request: Request) {
         password: hashedPassword,
         role: 'admin',
         companyId: newCompany.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .returning({ id: users.id });
 

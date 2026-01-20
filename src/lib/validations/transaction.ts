@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // Schema for transaction params in API routes
 export const transactionParamsSchema = z.object({
@@ -15,7 +16,7 @@ export const transactionSchema = z.object({
   }),
   description: z.string().min(1, 'Description is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
-  currency: z.string().default('IDR'),
+  currency: z.string().default(DEFAULT_CURRENCY),
   transactionDate: z.coerce.date(),
   categoryId: z.number().int().optional().nullable(),
   relatedInvoiceId: z.number().int().optional().nullable(),

@@ -92,8 +92,8 @@ export const processRecurringInvoices = async () => {
               currency: invoice.currency,
               notes: invoice.notes ? `${invoice.notes} (Recurring)` : 'Recurring Invoice',
               recurring: 'none', // Non-recurring instance
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
               softDelete: false,
             })
             .returning();
@@ -108,8 +108,8 @@ export const processRecurringInvoices = async () => {
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 amount: item.amount,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
               });
           }
           
@@ -124,7 +124,7 @@ export const processRecurringInvoices = async () => {
             .update(invoices)
             .set({
               nextDueDate: format(nextDueDate, 'yyyy-MM-dd'),
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
             })
             .where(eq(invoices.id, invoice.id));
           
@@ -183,8 +183,8 @@ export const processRecurringExpenses = async () => {
             expenseDate: formattedToday,
             status: 'pending',
             recurring: 'none', // Non-recurring instance
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             softDelete: false,
           }).returning();
           
@@ -198,7 +198,7 @@ export const processRecurringExpenses = async () => {
           await tx.update(expenses)
             .set({
               nextDueDate: format(nextDueDate, 'yyyy-MM-dd'),
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
             })
             .where(eq(expenses.id, expense.id));
           
@@ -258,8 +258,8 @@ export const processRecurringIncome = async () => {
             currency: incomeItem.currency,
             incomeDate: formattedToday,
             recurring: 'none', // Non-recurring instance
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             softDelete: false,
           }).returning();
           
@@ -273,7 +273,7 @@ export const processRecurringIncome = async () => {
           await tx.update(income)
             .set({
               nextDueDate: format(nextDueDate, 'yyyy-MM-dd'),
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
             })
             .where(eq(income.id, incomeItem.id));
           

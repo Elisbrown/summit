@@ -39,7 +39,7 @@ type ErrorResponse = {
 
 // GET /api/clients - Get all clients for the company
 export async function GET(request: NextRequest) {
-  return withAuth<ClientListResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/clients - Create a new client
 export async function POST(request: NextRequest) {
-  return withAuth<ClientResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const body = await request.json();
@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
           phone: validatedData.phone || null,
           address: validatedData.address || null,
           paymentTerms: validatedData.paymentTerms,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })
         .returning();
 

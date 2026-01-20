@@ -70,11 +70,10 @@ export async function GET(request: NextRequest) {
     // Sort by amount descending
     expensesByCategory.sort((a, b) => b.amount - a.amount);
     
-    // For expenses by month, use Drizzle's query builder with SQL fragments
-    // for PostgreSQL-specific functions
+    // For expenses by month, use SQLite strftime function
     const expensesByMonthResult = await db
       .select({
-        month: sql`date_trunc('month', ${expenses.expenseDate})`.as('month'),
+        month: sql`strftime('%Y-%m', ${expenses.expenseDate})`.as('month'),
         totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS NUMERIC)), 0)`.as('total_amount'),
       })
       .from(expenses)
@@ -86,8 +85,8 @@ export async function GET(request: NextRequest) {
           lte(expenses.expenseDate, endDateStr)
         )
       )
-      .groupBy(sql`month`)
-      .orderBy(sql`month`);
+      .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
+      .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
     
     // Format the data for the frontend
     const expensesByMonth = expensesByMonthResult.map(row => ({

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { recurringOptionEnum } from './expense';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // Invoice item schema
 export const invoiceItemSchema = z.object({
@@ -23,7 +24,7 @@ export const invoiceSchema = z.object({
   tax: z.coerce.number().min(0, 'Tax cannot be negative').default(0),
   taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').default(0),
   total: z.coerce.number().min(0, 'Total cannot be negative').optional(),
-  currency: z.string().default('IDR'),
+  currency: z.string().default(DEFAULT_CURRENCY),
   notes: z.string().optional(),
   recurring: recurringOptionEnum.default('none'),
   nextDueDate: z.coerce.date().optional().nullable(),

@@ -20,7 +20,7 @@ const publicPaths = [
   '/portal/login',
   '/portal/verify',
   '/api/portal/auth',
-  '/api/webhooks/xendit/payment',
+  '/api/health',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -107,7 +107,7 @@ export async function proxy(request: NextRequest) {
                   and(
                     eq(apiTokens.tokenPrefix, tokenPrefix),
                     isNull(apiTokens.revokedAt),
-                    or(isNull(apiTokens.expiresAt), sql`${apiTokens.expiresAt} > NOW()`)
+                    or(isNull(apiTokens.expiresAt), sql`${apiTokens.expiresAt} > datetime('now')`)
                   )
                 );
               
@@ -119,7 +119,7 @@ export async function proxy(request: NextRequest) {
                 if (isValid) {
                   // Token is valid - update last used timestamp
                   await db.update(apiTokens)
-                    .set({ lastUsedAt: new Date() })
+                    .set({ lastUsedAt: new Date().toISOString() })
                     .where(eq(apiTokens.id, tokenRecord.id));
                   
                   // Add user and company info to request headers

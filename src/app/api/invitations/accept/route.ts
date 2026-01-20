@@ -7,7 +7,13 @@ import { eq, and } from 'drizzle-orm';
 import { getUserPermissions } from '@/lib/auth/permissions/utils';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // Validation schema for the accept invitation request
 const acceptSchema = z.object({
@@ -48,13 +54,13 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if invitation has expired
-    if (new Date() > invitation.expires) {
+    if (new Date() > new Date(invitation.expires)) {
       // Mark invitation as expired
       await db
         .update(companyInvitations)
         .set({
           status: 'expired',
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(companyInvitations.id, invitation.id));
       
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
             role: invitation.role,
             companyId: invitation.companyId,
             softDelete: false,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           })
           .where(eq(users.id, existingUser[0].id))
           .returning({ id: users.id });
@@ -117,8 +123,8 @@ export async function POST(request: NextRequest) {
           password: hashedPassword,
           role: invitation.role,
           companyId: invitation.companyId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })
         .returning({ id: users.id });
       
@@ -130,8 +136,8 @@ export async function POST(request: NextRequest) {
       .update(companyInvitations)
       .set({
         status: 'accepted',
-        updatedAt: new Date(),
-        usedAt: new Date(),
+        updatedAt: new Date().toISOString(),
+        usedAt: new Date().toISOString(),
       })
       .where(eq(companyInvitations.id, invitation.id));
     
@@ -142,7 +148,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://summitfinance.app';
     
     // Send welcome email
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'kugie@summitfinance.app'}>`,
       to: invitation.email,
       subject: `Welcome to ${company?.name || 'Our Company'}`,

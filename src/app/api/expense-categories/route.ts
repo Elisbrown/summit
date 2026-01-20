@@ -21,7 +21,7 @@ type ErrorResponse = {
 
 // GET /api/expense-categories - List all expense categories
 export async function GET(request: NextRequest) {
-  return withAuth<ExpenseCategoryListResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
         .values({
           companyId,
           name,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
           softDelete: false,
         })
         .returning();

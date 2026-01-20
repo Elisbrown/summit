@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { PlusIcon } from 'lucide-react';
 import { z } from 'zod';
+import { formatCurrency } from '@/lib/utils';
 
 interface Client {
   id: number;
@@ -538,8 +539,8 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
                   >
                     <div className="col-span-6 px-2">{item.description}</div>
                     <div className="col-span-2 px-2 text-right">{item.quantity}</div>
-                    <div className="col-span-2 px-2 text-right">{company?.defaultCurrency || ''} {item.unitPrice.toFixed(2)}</div>
-                    <div className="col-span-2 px-2 text-right">{company?.defaultCurrency || ''} {(item.amount || 0).toFixed(2)}</div>
+                    <div className="col-span-2 px-2 text-right">{formatCurrency(item.unitPrice, company?.defaultCurrency)}</div>
+                    <div className="col-span-2 px-2 text-right">{formatCurrency(item.amount || 0, company?.defaultCurrency)}</div>
                   </div>
                 ))}
               </div>
@@ -548,17 +549,17 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
             <div className="mt-4 flex flex-col items-end space-y-1">
               <div className="grid grid-cols-2 gap-8 text-sm w-48">
                 <div className="text-muted-foreground">Subtotal:</div>
-                <div className="text-right">{company?.defaultCurrency || ''} {subtotal.toFixed(2)}</div>
+                <div className="text-right">{formatCurrency(subtotal, company?.defaultCurrency)}</div>
               </div>
               <div className="grid grid-cols-2 gap-8 text-sm w-48">
                 <div className="text-muted-foreground">Tax ({taxValue}%):</div>
                 <div className="text-right">
-                  {company?.defaultCurrency || ''} {((subtotal * taxValue) / 100).toFixed(2)}
+                  {formatCurrency((subtotal * taxValue) / 100, company?.defaultCurrency)}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-8 font-medium w-48">
                 <div>Total:</div>
-                <div className="text-right">{company?.defaultCurrency || ''} {total.toFixed(2)}</div>
+                <div className="text-right">{formatCurrency(total, company?.defaultCurrency)}</div>
               </div>
             </div>
           </CardContent>

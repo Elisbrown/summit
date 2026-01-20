@@ -23,6 +23,7 @@ import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 
 interface Invoice {
   id: number;
@@ -120,12 +121,6 @@ export function InvoiceList({ className }: InvoiceListProps) {
     }
   };
 
-  const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(parseFloat(amount));
-  };
 
   const formatDate = (dateString: string) => {
     try {
@@ -258,7 +253,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(invoice.total)}
+                    {formatCurrency(parseFloat(invoice.total))}
                   </TableCell>
                 </TableRow>
               ))

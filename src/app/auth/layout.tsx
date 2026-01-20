@@ -9,8 +9,8 @@ import { NextAuthProvider } from "@/components/NextAuthProvider";
 
 export const metadata: Metadata = {
     title: {
-        template: '%s - Summit Finance',
-        default: 'Summit Finance',
+        template: '%s - SIGALIX LABS',
+        default: 'SIGALIX LABS',
     },
     description: "Financial essentials, nothing more.",
     icons: [
@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Summit',
+        title: 'SIGALIX LABS',
         description: 'Financial essentials, nothing more.',
-        creator: 'Summit',
+        creator: 'SIGALIX LABS',
         images: ['https://summit.kugie.dev/og-image.png'],
     },
 }
@@ -48,14 +48,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 enableSystem
                 disableTransitionOnChange
             >
-                <div className="flex h-screen">
-                    <Sidebar />
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <Header />
-                        <main className="flex-1 overflow-auto p-4">
-                            {children}
-                        </main>
-                    </div>
+                <div className="flex min-h-screen flex-col">
+                    <main className="flex-1">
+                        {children}
+                    </main>
                 </div>
                 <Toaster />
             </ThemeProvider>

@@ -7,7 +7,21 @@ import { and, eq } from 'drizzle-orm';
 import { users } from '@/lib/db/schema';
 import { getUserPermissions } from './permissions/utils';
 
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https');
+
 export const authOptions: NextAuthOptions = {
+  useSecureCookies,
+  cookies: {
+    sessionToken: {
+      name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+      },
+    },
+  },
   session: {
     strategy: 'jwt',
   },

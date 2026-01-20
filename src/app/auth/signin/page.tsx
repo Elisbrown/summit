@@ -28,9 +28,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+import { Eye, EyeOff } from 'lucide-react';
+
 export default function SignInPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const isSignupDisabled = config.isSignupDisabled;
 
   const form = useForm<FormValues>({
@@ -102,12 +105,30 @@ export default function SignInPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        {...field}
-                        disabled={isLoading}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="sr-only">
+                            {showPassword ? "Hide password" : "Show password"}
+                          </span>
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,6 +147,11 @@ export default function SignInPage() {
               </Link>
             </div>
           )}
+          <div className="mt-4 text-center text-sm">
+            <Link href="/portal/login" className="text-muted-foreground hover:text-primary transition-colors">
+              Access Client Portal
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

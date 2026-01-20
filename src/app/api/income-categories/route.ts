@@ -21,8 +21,8 @@ type IncomeCategoryData = {
   id: number;
   companyId: number;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   softDelete: boolean;
 }
 
@@ -30,8 +30,8 @@ type CreateIncomeCategoryResponse = {
   id: number;
   companyId: number;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 type ErrorResponse = {
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Create a new income category
 export async function POST(req: NextRequest) {
-  return withAuth<CreateIncomeCategoryResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const body = await req.json();
@@ -116,8 +116,8 @@ export async function POST(req: NextRequest) {
         .values({
           companyId,
           name,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
           softDelete: false,
         })
         .returning();

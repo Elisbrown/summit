@@ -290,7 +290,7 @@ export function QuoteList({ className }: QuoteListProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={() => handleViewQuote(quote.id)}>
-                    {formatCurrency(parseFloat(quote.total), quote.company?.defaultCurrency || 'IDR')}
+                    {formatCurrency(parseFloat(quote.total), quote.company?.defaultCurrency)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

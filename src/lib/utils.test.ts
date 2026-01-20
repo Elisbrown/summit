@@ -12,6 +12,12 @@ describe('Utility Functions', () => {
     const formattedUSD = formatCurrency(100, 'USD');
     expect(formattedUSD).toContain('$');
     expect(formattedUSD).toContain('100');
+
+    // For XAF, check if it has FCFA or CFA and 0 decimals
+    const formattedXAF = formatCurrency(1500, 'XAF');
+    expect(formattedXAF).toContain('CFA'); // fr-FR usually formats as '1 500 FCFA' or similar
+    expect(formattedXAF).not.toContain(',');
+    expect(formattedXAF).not.toMatch(/\.00$/);
   });
 
   it('should combine class names', () => {

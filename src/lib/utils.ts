@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+import { DEFAULT_CURRENCY, getCurrencyConfig } from "./currencies"
+
 /**
  * Combines class names using clsx and tailwind-merge to handle conditional classes and conflicts
  */
@@ -11,12 +13,15 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format a number as currency with thousands separators and decimal places
  */
-export function formatCurrency(amount: number, currency: string = 'IDR', locale: string = 'id-ID'): string {
-  const formatter = new Intl.NumberFormat(locale, {
+export function formatCurrency(amount: number, currency: string = DEFAULT_CURRENCY, locale?: string): string {
+  const config = getCurrencyConfig(currency);
+  const targetLocale = locale || config.locale;
+  
+  const formatter = new Intl.NumberFormat(targetLocale, {
     style: 'currency',
     currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
   });
   
   return formatter.format(amount);
@@ -25,8 +30,9 @@ export function formatCurrency(amount: number, currency: string = 'IDR', locale:
 /**
  * Format a number with thousand separators
  */
-export function formatNumber(num: number, locale: string = 'id-ID'): string {
-  return new Intl.NumberFormat(locale).format(num);
+export function formatNumber(num: number, locale?: string): string {
+  const targetLocale = locale || getCurrencyConfig(DEFAULT_CURRENCY).locale;
+  return new Intl.NumberFormat(targetLocale).format(num);
 }
 
 export function formatDate(date: Date | string): string {

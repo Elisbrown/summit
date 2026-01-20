@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // Schema for payment params in API routes
 export const paymentParamsSchema = z.object({
@@ -12,7 +13,7 @@ export const paymentSchema = z.object({
   invoiceId: z.number().int().positive('Invoice ID is required'),
   clientId: z.number().int().positive('Client ID is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
-  currency: z.string().default('IDR'),
+  currency: z.string().default(DEFAULT_CURRENCY),
   paymentDate: z.coerce.date(),
   paymentMethod: z.enum(['card', 'bank_transfer', 'cash', 'other'], {
     errorMap: () => ({ message: 'Must be a valid payment method: card, bank_transfer, cash, or other' }),

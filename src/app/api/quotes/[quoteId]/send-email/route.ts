@@ -6,8 +6,14 @@ import { quotes, quoteItems, clients, companies, users } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { Resend } from 'resend';
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend lazily
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // POST /api/quotes/[quoteId]/send-email - Send quote via email
 export async function POST(
@@ -157,7 +163,7 @@ export async function POST(
     `;
 
     // Send the email using Resend
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'kugie@summitfinance.app'}>`,
       to: [quoteData.client.email],
       subject: `Quote ${quoteData.quote.quoteNumber} from ${quoteData.company?.name || 'Summit Finance'}`,
@@ -178,7 +184,7 @@ export async function POST(
         .update(quotes)
         .set({
           status: 'sent',
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(quotes.id, id));
     }

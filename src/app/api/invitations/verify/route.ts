@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if invitation has expired
-    if (new Date() > invitation.expires) {
+    if (new Date() > new Date(invitation.expires)) {
       // Mark invitation as expired
       await db
         .update(companyInvitations)
         .set({
           status: 'expired',
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(companyInvitations.id, invitation.id));
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { vendors } from '@/lib/db/schema';
-import { and, eq, ilike, desc } from 'drizzle-orm';
+import { and, eq, like, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/auth/getAuthInfo';
 
 type VendorResponse = {
@@ -13,8 +13,8 @@ type VendorData = {
   id: number;
   companyId: number;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 type ErrorResponse = {
@@ -25,7 +25,7 @@ type ErrorResponse = {
 
 // GET /api/vendors - Get all vendors for the current company
 export async function GET(req: NextRequest) {
-  return withAuth<VendorResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const url = new URL(req.url);
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         and(
           eq(vendors.companyId, companyId),
           eq(vendors.softDelete, false),
-          search ? ilike(vendors.name, `%${search}%`) : undefined
+          search ? like(vendors.name, `%${search}%`) : undefined
         )
       ).orderBy(desc(vendors.updatedAt));
       
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/vendors - Create a new vendor
 export async function POST(req: NextRequest) {
-  return withAuth<VendorResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const data = await req.json();

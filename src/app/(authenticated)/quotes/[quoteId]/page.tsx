@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ArrowLeft, Trash2, Send, Download, Pencil, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,7 +95,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
             address: null,
           },
           company: data.company || {
-            defaultCurrency: 'IDR',
+            defaultCurrency: 'XAF',
             name: ''
           },
           items: data.items || [],
@@ -477,26 +478,26 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
                 {quote.items.map((item) => (
                   <tr key={item.id}>
                     <td className="px-4 py-2 whitespace-pre-line text-sm">{item.description}</td>
-                    <td className="px-4 py-2 text-sm text-right">{parseFloat(item.quantity).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-sm text-right">{quote.company?.defaultCurrency || 'IDR'} {parseFloat(item.unitPrice).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-sm text-right">{quote.company?.defaultCurrency || 'IDR'} {parseFloat(item.amount).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-sm text-right">{parseFloat(item.quantity)}</td>
+                    <td className="px-4 py-2 text-sm text-right">{formatCurrency(parseFloat(item.unitPrice), quote.company?.defaultCurrency)}</td>
+                    <td className="px-4 py-2 text-sm text-right">{formatCurrency(parseFloat(item.amount), quote.company?.defaultCurrency)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-card">
                 <tr>
                   <td colSpan={3} className="px-4 py-2 text-sm text-right font-medium">Subtotal:</td>
-                  <td className="px-4 py-2 text-sm text-right">{quote.company?.defaultCurrency || 'IDR'} {parseFloat(quote.subtotal).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-sm text-right">{formatCurrency(parseFloat(quote.subtotal), quote.company?.defaultCurrency)}</td>
                 </tr>
                 <tr>
                   <td colSpan={3} className="px-4 py-2 text-sm text-right font-medium">
                     Tax ({quote.taxRate || '0'}%):
                   </td>
-                  <td className="px-4 py-2 text-sm text-right">{quote.company?.defaultCurrency || 'IDR'} {parseFloat(quote.tax).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-sm text-right">{formatCurrency(parseFloat(quote.tax), quote.company?.defaultCurrency)}</td>
                 </tr>
                 <tr>
                   <td colSpan={3} className="px-4 py-2 text-sm text-right font-medium">Total:</td>
-                  <td className="px-4 py-2 text-sm text-right font-bold">{quote.company?.defaultCurrency || 'IDR'} {parseFloat(quote.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-sm text-right font-bold">{formatCurrency(parseFloat(quote.total), quote.company?.defaultCurrency)}</td>
                 </tr>
               </tfoot>
             </table>

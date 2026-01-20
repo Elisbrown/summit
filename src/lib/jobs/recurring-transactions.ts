@@ -74,8 +74,8 @@ async function processRecurringExpenses(): Promise<number> {
         status: 'pending', // New recurring expenses start as pending
         recurring: 'none', // The new expense is not recurring itself
         nextDueDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         softDelete: false,
       });
       
@@ -84,7 +84,7 @@ async function processRecurringExpenses(): Promise<number> {
         .update(expenses)
         .set({
           nextDueDate: format(nextDueDate, 'yyyy-MM-dd'),
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(expenses.id, expense.id));
       
@@ -145,8 +145,8 @@ async function processRecurringIncome(): Promise<number> {
         incomeDate: format(incomeDate, 'yyyy-MM-dd'),
         recurring: 'none', // The new income is not recurring itself
         nextDueDate: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         softDelete: false,
       });
       
@@ -155,7 +155,7 @@ async function processRecurringIncome(): Promise<number> {
         .update(income)
         .set({
           nextDueDate: format(nextDueDate, 'yyyy-MM-dd'),
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(income.id, incomeEntry.id));
       

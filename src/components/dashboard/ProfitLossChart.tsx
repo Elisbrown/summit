@@ -12,6 +12,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 import { formatCurrency } from '@/lib/utils';
 
 type MonthData = {
@@ -56,7 +57,7 @@ const ProfitLossChart = ({
   data, 
   title = 'Profit & Loss', 
   description = 'Monthly income, expenses, and profit',
-  currency = 'IDR'
+  currency = DEFAULT_CURRENCY
 }: ProfitLossChartProps) => {
   // Format the month display (from YYYY-MM to Month name)
   const formattedData = data.map(item => ({

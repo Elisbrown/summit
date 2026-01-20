@@ -46,7 +46,7 @@ export async function PATCH(
     // Determine if we need to set acceptedAt date
     const updates: any = {
       status: validatedData.status,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     };
 
     // If status is changing to accepted, set acceptedAt

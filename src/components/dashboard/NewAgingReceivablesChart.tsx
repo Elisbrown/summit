@@ -18,6 +18,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart"
+import { DEFAULT_CURRENCY } from "@/lib/currencies"
 import { formatCurrency } from "@/lib/utils"
 
 type AgingData = {
@@ -64,7 +65,7 @@ export function NewAgingReceivablesChart({
   data,
   title = "Aging Receivables",
   description = "Outstanding invoices by age",
-  currency = "IDR",
+  currency = DEFAULT_CURRENCY,
   startDate,
   endDate
 }: AgingReceivablesChartProps) {

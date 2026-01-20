@@ -223,7 +223,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
         </Label>
         <Input
           id="name"
-          value={nameField.value}
+          value={nameField.value ?? ""}
           onChange={nameField.onChange}
           onBlur={nameField.onBlur}
           placeholder="Enter vendor name"
@@ -239,7 +239,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
         <Label htmlFor="contactName">Contact Person</Label>
         <Input
           id="contactName"
-          value={contactNameField.value}
+          value={contactNameField.value ?? ""}
           onChange={contactNameField.onChange}
           onBlur={contactNameField.onBlur}
           placeholder="Enter contact person's name"
@@ -254,7 +254,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
           <Input
             id="email"
             type="email"
-            value={emailField.value}
+            value={emailField.value ?? ""}
             onChange={emailField.onChange}
             onBlur={emailField.onBlur}
             placeholder="Enter email address"
@@ -268,7 +268,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
           <Label htmlFor="phone">Phone</Label>
           <Input
             id="phone"
-            value={phoneField.value}
+            value={phoneField.value ?? ""}
             onChange={phoneField.onChange}
             onBlur={phoneField.onBlur}
             placeholder="Enter phone number"
@@ -282,7 +282,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
         <Label htmlFor="address">Address</Label>
         <Textarea
           id="address"
-          value={addressField.value}
+          value={addressField.value ?? ""}
           onChange={addressField.onChange}
           onBlur={addressField.onBlur}
           placeholder="Enter address"
@@ -296,7 +296,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
         <Label htmlFor="website">Website</Label>
         <Input
           id="website"
-          value={websiteField.value}
+          value={websiteField.value ?? ""}
           onChange={websiteField.onChange}
           onBlur={websiteField.onBlur}
           placeholder="Enter website URL"
@@ -312,7 +312,7 @@ export default function VendorForm({ vendorId, onComplete }: VendorFormProps) {
         <Label htmlFor="notes">Notes</Label>
         <Textarea
           id="notes"
-          value={notesField.value}
+          value={notesField.value ?? ""}
           onChange={notesField.onChange}
           onBlur={notesField.onBlur}
           placeholder="Enter additional notes"

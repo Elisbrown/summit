@@ -1,1 +1,0 @@
-ALTER TABLE "invoices" ADD COLUMN "tax_rate" numeric(5, 2) DEFAULT '0';

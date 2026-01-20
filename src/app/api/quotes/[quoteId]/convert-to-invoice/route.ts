@@ -6,6 +6,7 @@ import { quotes, quoteItems, invoices, invoiceItems, companies } from '@/lib/db/
 import { and, eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { generateInvoiceNumber } from '@/lib/utils';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // POST /api/quotes/[quoteId]/convert-to-invoice - Convert quote to invoice
 export async function POST(
@@ -73,53 +74,51 @@ export async function POST(
     // Generate a new invoice number
     const invoiceNumber = generateInvoiceNumber();
     
-    // Start a transaction to create the invoice
-    const result = await db.transaction(async (tx) => {
-      // Create the invoice
-      const [newInvoice] = await tx.insert(invoices)
-        .values({
-          companyId: Number(companyId),
-          clientId: quote[0].clientId,
-          invoiceNumber,
-          status: 'draft', // Start as draft
-          issueDate: format(new Date(), 'yyyy-MM-dd'),
-          dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), 'yyyy-MM-dd'), // Due in 30 days
-          subtotal: quote[0].subtotal,
-          tax: quote[0].tax,
-          taxRate: quote[0].taxRate,
-          total: quote[0].total,
-          notes: quote[0].notes,
-          currency: company?.defaultCurrency || 'IDR',
-          recurring: 'none',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          softDelete: false,
-        })
-        .returning();
-      
-      // Create the invoice items
-      const invoiceItemsData = quoteItemsList.map(item => ({
-        invoiceId: newInvoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        amount: item.amount,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-      
-      await tx.insert(invoiceItems).values(invoiceItemsData);
-      
-      // Update the quote with the invoice ID reference
-      await tx.update(quotes)
-        .set({
-          convertedToInvoiceId: newInvoice.id,
-          updatedAt: new Date(),
-        })
-        .where(eq(quotes.id, Number(quoteId)));
-      
-      return newInvoice;
-    });
+    // Create invoice from quote (sequential for SQLite)
+    // Create the invoice
+    const [newInvoice] = await db.insert(invoices)
+      .values({
+        companyId: Number(companyId),
+        clientId: quote[0].clientId,
+        invoiceNumber,
+        status: 'draft', // Start as draft
+        issueDate: format(new Date(), 'yyyy-MM-dd'),
+        dueDate: format(new Date(new Date().setDate(new Date().getDate() + 30)), 'yyyy-MM-dd'), // Due in 30 days
+        subtotal: quote[0].subtotal,
+        tax: quote[0].tax,
+        taxRate: quote[0].taxRate,
+        total: quote[0].total,
+        notes: quote[0].notes,
+        currency: company?.defaultCurrency || DEFAULT_CURRENCY,
+        recurring: 'none',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        softDelete: false,
+      })
+      .returning();
+    
+    // Create the invoice items
+    const invoiceItemsData = quoteItemsList.map(item => ({
+      invoiceId: newInvoice.id,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      amount: item.amount,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+    
+    await db.insert(invoiceItems).values(invoiceItemsData);
+    
+    // Update the quote with the invoice ID reference
+    await db.update(quotes)
+      .set({
+        convertedToInvoiceId: newInvoice.id,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(quotes.id, Number(quoteId)));
+    
+    const result = newInvoice;
     
     return NextResponse.json({
       message: 'Quote successfully converted to invoice',

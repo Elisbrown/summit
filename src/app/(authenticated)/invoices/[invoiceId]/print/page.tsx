@@ -3,47 +3,54 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-import { InvoicePDF } from '@/components/invoices/InvoicePDF';
+import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface InvoiceItem {
-  id: number;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  amount: string;
-}
-
-interface InvoiceClient {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-}
-
-interface Invoice {
+interface InvoiceData {
   id: number;
   invoiceNumber: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-  issueDate: string;
-  dueDate: string;
-  subtotal: string;
-  tax: string;
-  total: string;
-  notes: string | null;
-  client: InvoiceClient;
-  items: InvoiceItem[];
+  status: string;
+  issueDate: string | Date;
+  dueDate: string | Date;
+  subtotal: number | string;
+  tax: number | string;
+  total: number | string;
+  notes?: string;
+  currency?: string;
+  client: {
+    id: number;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
+  items: Array<{
+    id: number;
+    description: string;
+    quantity: number | string;
+    unitPrice: number | string;
+    amount: number | string;
+  }>;
+  company?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    logoUrl?: string;
+    bankAccount?: string;
+    defaultCurrency?: string;
+  };
 }
 
 export default function InvoicePrintPage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const router = useRouter();
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [companyName, setCompanyName] = useState<string>('Your Company');
-  const [companyAddress, setCompanyAddress] = useState<string | undefined>(undefined);
+  const [invoice, setInvoice] = useState<any>(null); // Raw invoice from API
+  const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -60,18 +67,15 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ invoice
         const invoiceData = await response.json();
         setInvoice(invoiceData);
         
-        // Fetch company data - you might need to create this endpoint
-        // or get company data from session/context if available
+        // Fetch company data
         try {
           const companyResponse = await fetch('/api/companies/current');
           if (companyResponse.ok) {
             const companyData = await companyResponse.json();
-            setCompanyName(companyData.name);
-            setCompanyAddress(companyData.address);
+            setCompany(companyData);
           }
         } catch (companyError) {
           console.error('Error fetching company data:', companyError);
-          // Continue with default values if company fetch fails
         }
       } catch (error) {
         console.error('Error fetching invoice data:', error);
@@ -105,10 +109,30 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ invoice
     );
   }
   
+  // Helper to resolve logo URL
+  const getLogoUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith('http') || url.startsWith('/')) return url;
+    return `/uploads/${url}`;
+  };
+
+  // Construct data for PDF
   const pdfData = {
     ...invoice,
-    companyName,
-    companyAddress,
+    items: invoice.items.map((item: any) => ({
+      ...item,
+      // Ensure numeric values for PDF generation if needed, or keep string if the component handles it
+      // The InvoicePDF component interface accepts numbers or strings
+    })),
+    company: company ? {
+      name: company.name,
+      email: company.email || undefined,
+      phone: company.phone || undefined,
+      address: company.address || undefined,
+      logoUrl: getLogoUrl(company.logoUrl), // Ensure correct path for image
+      bankAccount: company.bankAccount || undefined,
+      defaultCurrency: company.defaultCurrency,
+    } : undefined
   };
   
   return (

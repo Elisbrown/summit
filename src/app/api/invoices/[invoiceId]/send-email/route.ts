@@ -5,8 +5,14 @@ import { and, eq } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { withAuth } from '@/lib/auth/getAuthInfo';
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend lazily
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // POST /api/invoices/[invoiceId]/send-email - Send invoice via email
 export async function POST(
@@ -78,11 +84,23 @@ export async function POST(
         });
       };
 
-      const formatCurrency = (amount: string | number) => {
-        return new Intl.NumberFormat('id-ID', {
+      const formatCurrency = (amount: string | number, currency: string = 'XAF') => {
+        const numericAmount = Number(amount);
+        const currencyConfigs: Record<string, { locale: string; decimals: number }> = {
+          'XAF': { locale: 'fr-FR', decimals: 0 },
+          'XOF': { locale: 'fr-FR', decimals: 0 },
+          'IDR': { locale: 'id-ID', decimals: 0 },
+          'EUR': { locale: 'fr-FR', decimals: 2 },
+          'USD': { locale: 'en-US', decimals: 2 },
+          'GBP': { locale: 'en-GB', decimals: 2 },
+        };
+        const config = currencyConfigs[currency] || { locale: 'en-US', decimals: 2 };
+        return new Intl.NumberFormat(config.locale, {
           style: 'currency',
-          currency: 'IDR',
-        }).format(Number(amount));
+          currency: currency,
+          minimumFractionDigits: config.decimals,
+          maximumFractionDigits: config.decimals,
+        }).format(numericAmount);
       };
 
       // Create a simple HTML email
@@ -114,7 +132,7 @@ export async function POST(
               
               <p>We hope this email finds you well. Please find attached your invoice 
                  <strong>${invoiceData.invoice.invoiceNumber}</strong> for the amount of 
-                 <strong>${formatCurrency(invoiceData.invoice.total)}</strong>.
+                 <strong>${formatCurrency(invoiceData.invoice.total, invoiceData.invoice.currency)}</strong>.
               </p>
               
               <div class="details">
@@ -128,7 +146,7 @@ export async function POST(
                 </div>
                 <div class="row" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 10px;">
                   <div>Total Amount:</div>
-                  <div>${formatCurrency(invoiceData.invoice.total)}</div>
+                  <div>${formatCurrency(invoiceData.invoice.total, invoiceData.invoice.currency)}</div>
                 </div>
               </div>
               
@@ -149,7 +167,7 @@ export async function POST(
       `;
 
       // Send email using Resend
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await getResend().emails.send({
         from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'invoice@summitfinance.app'}>`,
         to: [invoiceData.client.email],
         subject: `Invoice ${invoiceData.invoice.invoiceNumber} from ${invoiceData.company?.name || 'Summit Finance'}`,
@@ -172,7 +190,7 @@ export async function POST(
           .update(invoices)
           .set({
             status: 'sent',
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           })
           .where(eq(invoices.id, id));
       }

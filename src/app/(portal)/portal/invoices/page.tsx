@@ -83,16 +83,7 @@ export default async function InvoicesPage() {
                       >
                         View details
                       </Link>
-                      {invoice.xenditInvoiceUrl && invoice.status !== 'paid' && (
-                        <a
-                          href={invoice.xenditInvoiceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-6 text-primary font-medium hover:text-primary/80"
-                        >
-                          Pay now
-                        </a>
-                      )}
+                      {/* Payment integration removed */}
                     </div>
                   </div>
                 </div>

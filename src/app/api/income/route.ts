@@ -23,7 +23,7 @@ type ErrorResponse = {
 
 // GET: List all income entries
 export async function GET(req: NextRequest) {
-  return withAuth<IncomeListResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -160,8 +160,8 @@ export async function POST(req: NextRequest) {
           incomeDate: incomeDate.toISOString().split('T')[0],
           recurring,
           nextDueDate: calculatedNextDueDate ? calculatedNextDueDate.toISOString().split('T')[0] : null,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
           softDelete: false,
         })
         .returning();

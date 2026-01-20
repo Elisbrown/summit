@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,11 +16,16 @@ import Link from 'next/link';
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { data: session } = useSession();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4">
       <div className="flex md:hidden items-center">
-        <div className="text-xl font-bold">Summit</div>
+        <div className="text-xl font-bold">SIGALIX LABS</div>
       </div>
       
       <div className="flex-1 md:flex-none"></div>
@@ -28,10 +34,14 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full">
-              {theme === 'dark' ? (
-                <Moon className="h-4 w-4" />
+              {mounted ? (
+                theme === 'dark' ? (
+                  <Moon className="h-4 w-4" />
+                ) : (
+                  <Sun className="h-4 w-4" />
+                )
               ) : (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-4 w-4" /> // Default fallback to avoid layout shift, or use empty
               )}
               <span className="sr-only">Toggle theme</span>
             </Button>

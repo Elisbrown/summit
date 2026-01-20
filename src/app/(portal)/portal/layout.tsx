@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getClientSession } from '@/lib/auth/client/utils';
+import { PortalSignOutButton } from '@/components/portal/PortalSignOutButton';
 import "../../globals.css";
 
 export const metadata: Metadata = {
@@ -26,7 +27,7 @@ export default async function PortalLayout({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center">
-                <div className="text-white font-bold text-xl">Summit Portal</div>
+                <div className="text-white font-bold text-xl">SIGALIX LABS Portal</div>
                 <nav className="ml-10 flex items-baseline space-x-4">
                   <Link
                     href="/portal/dashboard"
@@ -41,6 +42,12 @@ export default async function PortalLayout({
                     Invoices
                   </Link>
                   <Link
+                    href="/portal/projects"
+                    className="text-gray-100 hover:bg-primary-dark hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Projects
+                  </Link>
+                  <Link
                     href="/portal/quotes"
                     className="text-gray-100 hover:bg-primary-dark hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                   >
@@ -49,8 +56,11 @@ export default async function PortalLayout({
                 </nav>
               </div>
               {session?.name && (
-                <div className="text-white text-sm">
-                  Welcome, {session.name}
+                <div className="flex items-center gap-4">
+                  <div className="text-white text-sm">
+                    Welcome, {session.name}
+                  </div>
+                  <PortalSignOutButton />
                 </div>
               )}
             </div>

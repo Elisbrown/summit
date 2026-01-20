@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { currencies, DEFAULT_CURRENCY, getCurrencyConfig } from "@/lib/currencies";
 import { incomeSchema } from "@/lib/validations/income";
 
 type IncomeFormValues = z.infer<typeof incomeSchema>;
@@ -74,7 +75,7 @@ export default function IncomeForm({ incomeId }: IncomeFormProps) {
       source: "",
       description: "",
       amount: "",
-      currency: "USD",
+      currency: DEFAULT_CURRENCY,
       incomeDate: new Date(),
       categoryId: 0,
       clientId: 0,
@@ -327,7 +328,7 @@ export default function IncomeForm({ incomeId }: IncomeFormProps) {
                     <option value="">Select an invoice (optional)</option>
                     {invoices.map((invoice) => (
                       <option key={invoice.id} value={invoice.id}>
-                        #{invoice.invoiceNumber} - {new Intl.NumberFormat('id-ID', { style: 'currency', currency: company?.defaultCurrency || 'IDR' }).format(parseFloat(invoice.total))}
+                        #{invoice.invoiceNumber} - {new Intl.NumberFormat(getCurrencyConfig(company?.defaultCurrency || DEFAULT_CURRENCY).locale, { style: 'currency', currency: company?.defaultCurrency || DEFAULT_CURRENCY }).format(parseFloat(invoice.total))}
                       </option>
                     ))}
                   </select>
@@ -364,18 +365,16 @@ export default function IncomeForm({ incomeId }: IncomeFormProps) {
                     min="0"
                     className="flex-1"
                   />
-                  <select
+                   <select
                     {...register("currency")}
                     className="ml-2 border rounded p-2 w-24"
-                    defaultValue={company?.defaultCurrency || "IDR"}
+                    defaultValue={company?.defaultCurrency || DEFAULT_CURRENCY}
                   >
-                    <option value="IDR">IDR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="JPY">JPY</option>
-                    <option value="CAD">CAD</option>
-                    <option value="AUD">AUD</option>
+                    {currencies.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.value}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {errors.amount && (

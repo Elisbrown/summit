@@ -17,6 +17,7 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency, cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,7 +111,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
             address: null,
           },
           company: data.company || {
-            defaultCurrency: 'IDR'
+            defaultCurrency: 'XAF'
           },
           items: data.items || [],
         });
@@ -265,105 +266,34 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
     return isPast(new Date(invoice.dueDate)) || invoice.status === 'overdue';
   };
   
-  const handleGeneratePaymentLink = async () => {
+  const handleSendPaymentInstructions = async () => {
     if (!invoice) return;
     
     // Check if client has an email
     if (!invoice.client?.email) {
-      toast.error('Client must have an email address to generate a payment link');
+      toast.error('Client must have an email address to receive payment instructions');
       return;
     }
     
-    setGeneratingPaymentLink(true);
+    setGeneratingPaymentLink(true); // Using same state variable for loading
     
     try {
       const { invoiceId } = await params;
-      const response = await fetch(`/api/invoices/${invoiceId}/create-xendit-invoice`, {
+      const response = await fetch(`/api/invoices/${invoiceId}/send-payment-info`, {
         method: 'POST',
       });
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to generate payment link');
+        throw new Error(error.message || 'Failed to send payment instructions');
       }
       
-      const data = await response.json();
-      
-      // Update the invoice with the new Xendit information
-      setInvoice(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          xenditInvoiceId: data.invoice.xenditInvoiceId,
-          xenditInvoiceUrl: data.invoice.xenditInvoiceUrl,
-        };
-      });
-      
-      toast.success('Payment link generated successfully');
-      
-      // Optionally open the payment link in a new tab
-      if (data.xenditInvoiceUrl) {
-        window.open(data.xenditInvoiceUrl, '_blank');
-      }
+      toast.success('Payment instructions sent to client');
     } catch (error) {
-      console.error('Error generating payment link:', error);
-      toast.error((error as Error).message || 'Failed to generate payment link');
+      console.error('Error sending payment instructions:', error);
+      toast.error((error as Error).message || 'Failed to send payment instructions');
     } finally {
       setGeneratingPaymentLink(false);
-    }
-  };
-  
-  const handleRegeneratePaymentLink = async () => {
-    if (!invoice) return;
-    
-    // Check if client has an email
-    if (!invoice.client?.email) {
-      toast.error('Client must have an email address to regenerate a payment link');
-      return;
-    }
-    
-    setRegeneratingPaymentLink(true);
-    
-    try {
-      const { invoiceId } = await params;
-      const response = await fetch(`/api/invoices/${invoiceId}/create-xendit-invoice`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          regenerate: true
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to regenerate payment link');
-      }
-      
-      const data = await response.json();
-      
-      // Update the invoice with the new Xendit information
-      setInvoice(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          xenditInvoiceId: data.invoice.xenditInvoiceId,
-          xenditInvoiceUrl: data.invoice.xenditInvoiceUrl,
-        };
-      });
-      
-      toast.success('Payment link regenerated successfully');
-      
-      // Optionally open the payment link in a new tab
-      if (data.xenditInvoiceUrl) {
-        window.open(data.xenditInvoiceUrl, '_blank');
-      }
-    } catch (error) {
-      console.error('Error regenerating payment link:', error);
-      toast.error((error as Error).message || 'Failed to regenerate payment link');
-    } finally {
-      setRegeneratingPaymentLink(false);
     }
   };
   
@@ -398,9 +328,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
     }
   };
 
-  const formatCurrency = (amount: string) => {
-    return Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(parseFloat(amount));
-  };
   
   return (
     <div className="container mx-auto py-6 space-y-8">
@@ -442,91 +369,22 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
             </>
           )}
           
-          {invoice.status === 'sent' && (
+          {/* Actions for Sent or Overdue invoices */}
+          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
             <>
               <Button variant="outline" size="sm" onClick={() => handleStatusUpdate('paid')}>
                 Mark as Paid
               </Button>
               
-              {/* Payment link button */}
-              {invoice.xenditInvoiceUrl ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => invoice.xenditInvoiceUrl && window.open(invoice.xenditInvoiceUrl, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Payment Link
-                  </Button>
-                  
-                  {/* Add Regenerate button if the payment link is expired */}
-                  {isPaymentLinkExpired(invoice) && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleRegeneratePaymentLink}
-                      disabled={regeneratingPaymentLink}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${regeneratingPaymentLink ? 'animate-spin' : ''}`} />
-                      {regeneratingPaymentLink ? 'Regenerating...' : 'Regenerate Link'}
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleGeneratePaymentLink}
-                  disabled={generatingPaymentLink || !invoice.client?.email}
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  {generatingPaymentLink ? 'Generating...' : 'Generate Payment Link'}
-                </Button>
-              )}
-            </>
-          )}
-          
-          {/* Add same functionality for overdue status */}
-          {invoice.status === 'overdue' && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => handleStatusUpdate('paid')}>
-                Mark as Paid
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSendPaymentInstructions}
+                disabled={generatingPaymentLink || !invoice.client?.email}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                {generatingPaymentLink ? 'Sending...' : 'Send Payment Instructions'}
               </Button>
-              
-              {invoice.xenditInvoiceUrl ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => invoice.xenditInvoiceUrl && window.open(invoice.xenditInvoiceUrl, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Payment Link
-                  </Button>
-                  
-                  {/* Always show regenerate button for overdue invoices with payment links */}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleRegeneratePaymentLink}
-                    disabled={regeneratingPaymentLink}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${regeneratingPaymentLink ? 'animate-spin' : ''}`} />
-                    {regeneratingPaymentLink ? 'Regenerating...' : 'Regenerate Link'}
-                  </Button>
-                </>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleGeneratePaymentLink}
-                  disabled={generatingPaymentLink || !invoice.client?.email}
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  {generatingPaymentLink ? 'Generating...' : 'Generate Payment Link'}
-                </Button>
-              )}
             </>
           )}
           
@@ -537,7 +395,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
             disabled={sendingEmail || !invoice.client?.email}
           >
             <Send className="h-4 w-4 mr-2" />
-            {sendingEmail ? 'Sending...' : 'Send Email'}
+            {sendingEmail ? 'Sending...' : 'Send Invoice Email'}
           </Button>
           
           <AlertDialog>
@@ -562,44 +420,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
           </AlertDialog>
         </div>
       </div>
-      
-      {/* If we have a payment link, show it in a card */}
-      {invoice.xenditInvoiceUrl && (
-        <Card className={`${isPaymentLinkExpired(invoice) ? 'bg-amber-50' : 'bg-slate-50'}`}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">
-                  Payment Link {isPaymentLinkExpired(invoice) ? '(Expired)' : 'Available'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {isPaymentLinkExpired(invoice) 
-                    ? 'This payment link has expired. Please regenerate a new one.' 
-                    : 'Share this link with your client to receive payment online'}
-                </p>
-              </div>
-              {isPaymentLinkExpired(invoice) ? (
-                <Button 
-                  onClick={handleRegeneratePaymentLink}
-                  className="ml-4"
-                  disabled={regeneratingPaymentLink}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${regeneratingPaymentLink ? 'animate-spin' : ''}`} />
-                  {regeneratingPaymentLink ? 'Regenerating...' : 'Regenerate Link'}
-                </Button>
-              ) : (
-                <Button 
-                  onClick={() => invoice.xenditInvoiceUrl && window.open(invoice.xenditInvoiceUrl, '_blank')}
-                  className="ml-4"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Payment Page
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -649,7 +469,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
             <CardTitle>Amount Due</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(invoice.total)}</div>
+            <div className="text-3xl font-bold">{formatCurrency(parseFloat(invoice.total), invoice.company?.defaultCurrency)}</div>
             <div className="text-muted-foreground mt-2">
               Status: <span className="font-medium">{invoice.status}</span>
             </div>
@@ -675,9 +495,9 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
               {invoice.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.description}</TableCell>
-                  <TableCell className="text-right">{parseFloat(item.quantity).toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{invoice.company?.defaultCurrency || "IDR"} {parseFloat(item.unitPrice).toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{invoice.company?.defaultCurrency || "IDR"} {parseFloat(item.amount).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{parseFloat(item.quantity)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(parseFloat(item.unitPrice), invoice.company?.defaultCurrency)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(parseFloat(item.amount), invoice.company?.defaultCurrency)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -686,15 +506,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ invoic
             <div className="space-y-2 w-48">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal:</span>
-                {invoice.company?.defaultCurrency || "IDR"} {parseFloat(invoice.subtotal).toFixed(2)}
+                {formatCurrency(parseFloat(invoice.subtotal), invoice.company?.defaultCurrency)}
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax ({invoice.taxRate || '0'}%)</span>
-                {invoice.company?.defaultCurrency || "IDR"} {parseFloat(invoice.tax).toFixed(2)}
+                {formatCurrency(parseFloat(invoice.tax), invoice.company?.defaultCurrency)}
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Total:</span>
-                {invoice.company?.defaultCurrency || "IDR"} {parseFloat(invoice.total).toFixed(2)}
+                {formatCurrency(parseFloat(invoice.total), invoice.company?.defaultCurrency)}
               </div>
             </div>
           </div>

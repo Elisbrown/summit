@@ -7,7 +7,13 @@ import { eq } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { MagicLinkEmail } from '@/emails/MagicLinkEmail';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // Validation schema for the request body
 const requestSchema = z.object({
@@ -41,10 +47,9 @@ export async function POST(request: NextRequest) {
       .where(eq(clients.email, email));
 
     if (!clientData) {
-      // Don't reveal that the client doesn't exist
       return NextResponse.json(
-        { message: 'If you exist as a client, a magic link has been sent to your email' },
-        { status: 200 }
+        { error: 'Email not found. Please contact your administrator.' },
+        { status: 404 }
       );
     }
 
@@ -56,7 +61,7 @@ export async function POST(request: NextRequest) {
     const verificationUrl = `${baseUrl}/portal/verify?token=${token}`;
 
     // Send email
-    await resend.emails.send({
+    await getResend().emails.send({
       from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'kugie@summitfinance.app'}>`,
       to: email,
       subject: 'Sign in to Your Client Portal',
@@ -72,6 +77,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error generating magic link:', error);
+    // @ts-ignore
+    if (error?.message) console.error('Error message:', error.message);
+    // @ts-ignore
+    if (error?.response) console.error('Error response:', JSON.stringify(error.response));
+    
     return NextResponse.json(
       { error: 'An error occurred while generating your magic link' },
       { status: 500 }

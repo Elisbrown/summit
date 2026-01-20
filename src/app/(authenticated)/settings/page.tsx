@@ -66,6 +66,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import CompanySettings from '@/components/settings/CompanySettings';
 import ApiTokenSettings from '@/components/settings/ApiTokenSettings';
+import ProfileSettings from '@/components/settings/ProfileSettings';
 
 // Form validation schema for inviting users
 const inviteFormSchema = z.object({
@@ -311,22 +312,7 @@ export default function SettingsPage() {
         </TabsList>
         
         <TabsContent value="account">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
-              <CardDescription>
-                Manage your account details and preferences.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                The account settings section will allow users to update their profile, change password, and manage their account preferences.
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                This section is currently being developed and will be available soon.
-              </p>
-            </CardContent>
-          </Card>
+          <ProfileSettings />
         </TabsContent>
         
         {/* <TabsContent value="notifications">

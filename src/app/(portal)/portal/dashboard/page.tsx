@@ -1,9 +1,11 @@
 import { Metadata } from 'next';
 import { requireClientAuth } from '@/lib/auth/client/utils';
 import { db } from '@/lib/db';
-import { invoices, quotes } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { invoices, quotes, projects, clientProjects } from '@/lib/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Client Portal Dashboard',
@@ -52,22 +54,96 @@ export default async function DashboardPage() {
         eq(quotes.softDelete, false)
       )
     )
-    .orderBy(quotes.expiryDate)
+    .orderBy(desc(quotes.expiryDate))
     .limit(5);
+
+  // Get client projects
+  const dashboardProjects = await db
+    .select({
+      id: projects.id,
+      title: projects.title,
+      status: projects.status,
+      startDate: projects.startDate,
+      endDate: projects.endDate,
+      colorCode: projects.colorCode,
+    })
+    .from(projects)
+    .innerJoin(clientProjects, eq(clientProjects.projectId, projects.id))
+    .where(and(
+      eq(clientProjects.clientId, session.clientId),
+      eq(projects.softDelete, false)
+    ))
+    .orderBy(desc(projects.updatedAt))
+    .limit(3);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'paused': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        {/* <button
-          onClick={async () => {
-            await fetch('/api/portal/auth/logout', { method: 'POST' });
-            window.location.href = '/portal/login';
-          }}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        >
-          Sign Out
-        </button> */}
+      </div>
+
+      {/* Projects Overview */}
+      <div className="mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-medium text-gray-900">Recent Projects</h2>
+              <p className="mt-1 text-sm text-gray-500">Your active projects</p>
+            </div>
+            <Link
+              href="/portal/projects"
+              className="text-sm font-medium text-primary hover:text-primary/90"
+            >
+              View all
+            </Link>
+          </div>
+          <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+            {dashboardProjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {dashboardProjects.map((project) => (
+                  <Link key={project.id} href={`/portal/projects/${project.id}`} className="block group">
+                    <div className="border rounded-md p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: project.colorCode || '#gray' }}
+                          />
+                          <h3 className="font-semibold text-gray-900 group-hover:text-primary truncate">
+                            {project.title}
+                          </h3>
+                        </div>
+                        <Badge variant="outline" className={getStatusColor(project.status)}>
+                          {project.status}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-500 flex items-center gap-2 mt-4">
+                        <Calendar className="h-4 w-4" />
+                         <span>
+                          {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'TBD'} 
+                          {' - '}
+                          {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'TBD'}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No projects found.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 mb-8 lg:grid-cols-2">
@@ -114,16 +190,7 @@ export default async function DashboardPage() {
                           >
                             View
                           </Link>
-                          {invoice.xenditInvoiceUrl && (
-                            <a 
-                              href={invoice.xenditInvoiceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-4 text-sm font-medium text-primary hover:text-primary/90"
-                            >
-                              Pay Now
-                            </a>
-                          )}
+                          {/* Payment integration removed */}
                         </div>
                       </div>
                     </div>

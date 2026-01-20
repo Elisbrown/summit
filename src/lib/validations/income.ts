@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 import { recurringOptionEnum } from './expense';
 
 // Income Category Schema
@@ -18,7 +19,7 @@ export const incomeSchema = z.object({
   source: z.string().min(1, 'Source is required'),
   description: z.string().optional(),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Amount must be a valid currency value'),
-  currency: z.string().default('IDR'),
+  currency: z.string().default(DEFAULT_CURRENCY),
   incomeDate: z.coerce.date({
     errorMap: () => ({ message: 'Please select a valid date' }),
   }),

@@ -23,6 +23,7 @@ interface QuoteEmailProps {
     issueDate: string | Date;
     expiryDate: string | Date;
     total: number | string;
+    currency?: string;
     client: {
       name: string;
       email?: string;
@@ -40,12 +41,26 @@ const formatDate = (date: string | Date) => {
   return format(new Date(date), 'PP');
 };
 
-const formatCurrency = (amount: number | string) => {
-  // apply id-ID currency format
-  return new Intl.NumberFormat('id-ID', {
+const formatCurrency = (amount: number | string, currency: string = 'XAF') => {
+  const numericAmount = Number(amount);
+  
+  const currencyConfigs: Record<string, { locale: string; decimals: number }> = {
+    'XAF': { locale: 'fr-FR', decimals: 0 },
+    'XOF': { locale: 'fr-FR', decimals: 0 },
+    'IDR': { locale: 'id-ID', decimals: 0 },
+    'EUR': { locale: 'fr-FR', decimals: 2 },
+    'USD': { locale: 'en-US', decimals: 2 },
+    'GBP': { locale: 'en-GB', decimals: 2 },
+  };
+
+  const config = currencyConfigs[currency] || { locale: 'en-US', decimals: 2 };
+
+  return new Intl.NumberFormat(config.locale, {
     style: 'currency',
-    currency: 'IDR',
-  }).format(Number(amount));
+    currency: currency,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
+  }).format(numericAmount);
 };
 
 export const QuoteEmail: React.FC<QuoteEmailProps> = ({
@@ -54,7 +69,8 @@ export const QuoteEmail: React.FC<QuoteEmailProps> = ({
   viewUrl,
   acceptUrl,
 }) => {
-  const previewText = `Quote ${quote.quoteNumber} for ${formatCurrency(quote.total)}`;
+  const currency = quote.currency || 'XAF';
+  const previewText = `Quote ${quote.quoteNumber} for ${formatCurrency(quote.total, currency)}`;
 
   return (
     <Html>
@@ -81,7 +97,7 @@ export const QuoteEmail: React.FC<QuoteEmailProps> = ({
             <Text style={paragraph}>
               Thank you for your interest in our services. Please find attached your quote 
               {' '}<strong>{quote.quoteNumber}</strong> for the amount of 
-              {' '}<strong>{formatCurrency(quote.total)}</strong>.
+              {' '}<strong>{formatCurrency(quote.total, currency)}</strong>.
             </Text>
             
             <Section style={details}>
@@ -95,7 +111,7 @@ export const QuoteEmail: React.FC<QuoteEmailProps> = ({
               </Row>
               <Row style={totalRow}>
                 <Column>Total Amount:</Column>
-                <Column align="right">{formatCurrency(quote.total)}</Column>
+                <Column align="right">{formatCurrency(quote.total, currency)}</Column>
               </Row>
             </Section>
             

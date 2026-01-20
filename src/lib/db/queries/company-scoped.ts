@@ -129,7 +129,7 @@ export async function updateCompanyScopedRecord<T extends PgTableWithColumns<any
     .update(table)
     .set({
       ...data,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     } as any)
     .where(and(
       eq(table.companyId as any, companyId),
@@ -154,7 +154,7 @@ export async function softDeleteCompanyScopedRecord<T extends PgTableWithColumns
     .update(table)
     .set({
       softDelete: true,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     } as any)
     .where(and(
       eq(table.companyId as any, companyId),

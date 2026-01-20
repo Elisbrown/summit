@@ -11,7 +11,7 @@ export const getMonthlyIncome = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${income.incomeDate})`,
       total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
     })
     .from(income)
@@ -23,8 +23,8 @@ export const getMonthlyIncome = async (
         eq(income.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${income.incomeDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${income.incomeDate})`);
 
   return query;
 };
@@ -37,7 +37,7 @@ export const getMonthlyExpenses = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${expenses.expenseDate})`,
       total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
     })
     .from(expenses)
@@ -49,8 +49,8 @@ export const getMonthlyExpenses = async (
         eq(expenses.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
 
   return query;
 };

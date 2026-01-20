@@ -12,13 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { currencies, DEFAULT_CURRENCY } from "@/lib/currencies";
 
 const expenseSchema = z.object({
   vendorId: z.string().optional(),
   vendor: z.string().min(1, "Vendor is required").optional(),
   description: z.string().optional(),
   amount: z.string().min(1, "Amount is required"),
-  currency: z.string().default("USD"),
+  currency: z.string().default(DEFAULT_CURRENCY),
   expenseDate: z.string().min(1, "Expense date is required"),
   categoryId: z.string().optional(),
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
@@ -72,7 +73,7 @@ export default function ExpenseForm({ expenseId }: ExpenseFormProps) {
       vendor: "",
       description: "",
       amount: "",
-      currency: "USD",
+      currency: DEFAULT_CURRENCY,
       expenseDate: format(new Date(), "yyyy-MM-dd"),
       categoryId: "",
       status: "pending",
@@ -197,8 +198,8 @@ export default function ExpenseForm({ expenseId }: ExpenseFormProps) {
 
       const expenseData = {
         ...data,
-        vendorId: data.vendorId ? parseInt(data.vendorId) : null,
-        categoryId: data.categoryId ? parseInt(data.categoryId) : null,
+        vendorId: data.vendorId ? parseInt(data.vendorId) : undefined,
+        categoryId: data.categoryId ? parseInt(data.categoryId) : undefined,
         receiptUrl, // This can be null if no receipt was uploaded
         // Only include nextDueDate if recurring is not "none"
         nextDueDate: data.recurring !== "none" ? data.nextDueDate : null,
@@ -335,13 +336,11 @@ export default function ExpenseForm({ expenseId }: ExpenseFormProps) {
                     {...register("currency")}
                     className="ml-2 border rounded p-2 w-24"
                   >
-                    <option value="IDR">IDR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="JPY">JPY</option>
-                    <option value="CAD">CAD</option>
-                    <option value="AUD">AUD</option>
+                    {currencies.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.value}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {errors.amount && (
@@ -442,21 +441,8 @@ export default function ExpenseForm({ expenseId }: ExpenseFormProps) {
                     <a
                       onClick={async (e) => {
                         e.preventDefault();
-                        try {
-                          // Get the fileName - this is now just the path
-                          const url = new URL(existingReceiptUrl as string);
-                          const fileName = url.pathname.startsWith("/")
-                            ? url.pathname.slice(1)
-                            : url.pathname;
-                          // ALWAYS use our API to get a presigned URL
-                          const response = await fetch(`/api/download/receipt?fileName=${fileName}`);
-                          if (!response.ok) throw new Error('Failed to get download link');
-
-                          const data = await response.json();
-                          window.open(data.url, '_blank');
-                        } catch (error) {
-                          console.error('Error opening receipt:', error);
-                          toast.error('Failed to open receipt');
+                        if (existingReceiptUrl) {
+                          window.open(existingReceiptUrl, '_blank');
                         }
                       }}
                       href="#"

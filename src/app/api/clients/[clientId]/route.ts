@@ -32,7 +32,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  return withAuth<ClientResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate clientId parameter
       const { clientId } = await params;
@@ -80,7 +80,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  return withAuth<ClientResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate clientId parameter
       const { clientId } = await params;
@@ -142,7 +142,7 @@ export async function PUT(
           phone: validatedData.phone || null,
           address: validatedData.address || null,
           paymentTerms: validatedData.paymentTerms,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
@@ -176,7 +176,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
-  return withAuth<ClientResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate clientId parameter
       const { clientId } = await params;
@@ -205,7 +205,7 @@ export async function DELETE(
         .update(clients)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(

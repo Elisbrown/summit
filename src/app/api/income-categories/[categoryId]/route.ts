@@ -32,7 +32,7 @@ export async function GET(
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
   
-  return withAuth<IncomeCategoryResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
@@ -79,7 +79,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
-  return withAuth<IncomeCategoryResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
@@ -148,7 +148,7 @@ export async function PUT(
         .update(incomeCategories)
         .set({
           name,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
@@ -174,7 +174,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
-  return withAuth<IncomeCategoryResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
@@ -214,7 +214,7 @@ export async function DELETE(
         .update(incomeCategories)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(

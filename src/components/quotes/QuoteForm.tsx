@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { PlusIcon } from 'lucide-react';
 import { z } from 'zod';
+import { formatCurrency } from '@/lib/utils';
 
 interface Client {
   id: number;
@@ -508,9 +509,9 @@ export function QuoteForm({ initialData, onSuccess, onCancel }: QuoteFormProps) 
                     {items.map((item, index) => (
                       <tr key={index} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 text-sm">{item.description}</td>
-                        <td className="px-4 py-3 text-sm text-right">{item.quantity.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-right">{company?.defaultCurrency || ''} {item.unitPrice.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-right">{company?.defaultCurrency || ''} {(item.amount || 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right">{item.quantity}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.unitPrice, company?.defaultCurrency)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-right">{formatCurrency(item.amount || 0, company?.defaultCurrency)}</td>
                         <td className="px-4 py-3">
                           <div className="flex justify-center space-x-4">
                             <Button
@@ -544,17 +545,17 @@ export function QuoteForm({ initialData, onSuccess, onCancel }: QuoteFormProps) 
                 <div className="mt-4 border-t pt-4 flex flex-col items-end pr-4">
                   <div className="grid grid-cols-2 gap-8 text-sm w-64">
                     <div className="text-muted-foreground text-right">Subtotal:</div>
-                    <div className="text-right font-medium">{company?.defaultCurrency || ''} {form.watch('subtotal').toFixed(2)}</div>
+                    <div className="text-right font-medium">{formatCurrency(form.watch('subtotal'), company?.defaultCurrency)}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-8 text-sm w-64 mt-1">
                     <div className="text-muted-foreground text-right">Tax ({form.watch('taxRate')}%):</div>
                     <div className="text-right font-medium">
-                      {company?.defaultCurrency || ''} {((form.watch('subtotal') * form.watch('taxRate')) / 100).toFixed(2)}
+                      {formatCurrency((form.watch('subtotal') * form.watch('taxRate')) / 100, company?.defaultCurrency)}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-8 text-base w-64 mt-2 border-t pt-2">
                     <div className="font-medium text-right">Total:</div>
-                    <div className="text-right font-bold">{company?.defaultCurrency || ''} {form.watch('total').toFixed(2)}</div>
+                    <div className="text-right font-bold">{formatCurrency(form.watch('total'), company?.defaultCurrency)}</div>
                   </div>
                 </div>
               </div>

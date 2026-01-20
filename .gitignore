@@ -44,3 +44,15 @@ build/
 # Cache
 .cache/
 tsconfig.tsbuildinfo
+
+# Legacy code (PostgreSQL, Docker, etc.)
+_legacy/
+
+# SQLite database
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Uploads (use git lfs or exclude)
+# public/uploads/

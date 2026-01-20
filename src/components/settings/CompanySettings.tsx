@@ -30,9 +30,7 @@ const companyFormSchema = z.object({
     message: 'City is required.',
   }),
   state: z.string().optional(),
-  postalCode: z.string().min(1, {
-    message: 'Postal code is required.',
-  }),
+  postalCode: z.string().optional(),
   country: z.string().min(2, {
     message: 'Country is required.',
   }),
@@ -55,20 +53,7 @@ const companyFormSchema = z.object({
 
 type CompanyFormValues = z.infer<typeof companyFormSchema>;
 
-// Common currency options
-const currencies = [
-  { value: 'USD', label: 'USD (US Dollar)' },
-  { value: 'EUR', label: 'EUR (Euro)' },
-  { value: 'GBP', label: 'GBP (British Pound)' },
-  { value: 'JPY', label: 'JPY (Japanese Yen)' },
-  { value: 'CAD', label: 'CAD (Canadian Dollar)' },
-  { value: 'AUD', label: 'AUD (Australian Dollar)' },
-  { value: 'CHF', label: 'CHF (Swiss Franc)' },
-  { value: 'CNY', label: 'CNY (Chinese Yuan)' },
-  { value: 'INR', label: 'INR (Indian Rupee)' },
-  { value: 'SGD', label: 'SGD (Singapore Dollar)' },
-  { value: 'IDR', label: 'IDR (Indonesian Rupiah)' },
-];
+import { currencies, DEFAULT_CURRENCY } from '@/lib/currencies';
 
 export default function CompanySettings() {
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +77,7 @@ export default function CompanySettings() {
       taxNumber: '',
       website: '',
       bankAccount: '',
-      defaultCurrency: 'USD',
+      defaultCurrency: DEFAULT_CURRENCY,
     },
     mode: 'onChange',
   });
@@ -123,7 +108,7 @@ export default function CompanySettings() {
           taxNumber: company.taxNumber || '',
           website: company.website || addressParts.website || '',
           bankAccount: company.bankAccount || '',
-          defaultCurrency: company.defaultCurrency || 'USD',
+          defaultCurrency: company.defaultCurrency || DEFAULT_CURRENCY,
         });
 
         if (company.logoUrl) {

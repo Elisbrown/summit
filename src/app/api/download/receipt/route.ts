@@ -24,17 +24,17 @@ export async function GET(req: NextRequest) {
       );
     }
     const companyId = session.user.companyId;
-    const bucketName = process.env.MINIO_BUCKET_NAME;
-    if (!fileName.startsWith(`${bucketName}/${companyId}/receipts/`)) {
+    
+    // Ensure the user is accessing their own company's files
+    // The filename should start with the company ID
+    if (!fileName.startsWith(`${companyId}/`)) {
       return NextResponse.json(
         { error: "Access denied" },
         { status: 403 }
       );
     }
 
-    const sanitizedFileName = fileName.replace(`${bucketName}/`, "");
-    
-    const presignedUrl = await getPresignedUrl(sanitizedFileName);
+    const presignedUrl = await getPresignedUrl(fileName);
     return NextResponse.json({
       url: presignedUrl
     });

@@ -13,16 +13,16 @@ type QuoteDetailResponse = {
   clientId: number;
   quoteNumber: string;
   status: string;
-  issueDate: string | Date;
-  expiryDate: string | Date;
+  issueDate: string;
+  expiryDate: string;
   subtotal: string;
   tax: string | null;
   taxRate: string | null;
   total: string;
   notes: string | null;
-  acceptedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  acceptedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   softDelete: boolean;
   convertedToInvoiceId: number | null;
   client?: any;
@@ -40,7 +40,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ quoteId: string }> }
 ) {
-  return withAuth<QuoteDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate quoteId parameter
       const { quoteId } = await params;
@@ -112,7 +112,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ quoteId: string }> }
 ) {
-  return withAuth<QuoteDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate quoteId parameter
       const { quoteId } = await params;
@@ -150,64 +150,62 @@ export async function PUT(
       const tax = (subtotal * taxPercentage) / 100;
       const total = subtotal + tax;
 
-      // Start a transaction for updating quote and items
-      return await db.transaction(async (tx) => {
-        // Update quote
-        const [updatedQuote] = await tx
-          .update(quotes)
-          .set({
-            clientId: validatedData.clientId,
-            quoteNumber: validatedData.quoteNumber,
-            status: validatedData.status,
-            issueDate: validatedData.issueDate.toISOString(),
-            expiryDate: validatedData.expiryDate.toISOString(),
-            subtotal: subtotal.toString(),
-            taxRate: taxPercentage.toString(),
-            tax: tax.toString(),
-            total: total.toString(),
-            notes: validatedData.notes || null,
-            updatedAt: new Date(),
-            // Set acceptedAt if status is changed to accepted
-            acceptedAt: validatedData.status === 'accepted' && existingQuote[0].status !== 'accepted'
-              ? new Date()
-              : existingQuote[0].acceptedAt,
-          })
-          .where(
-            and(
-              eq(quotes.id, id),
-              eq(quotes.companyId, companyId)
-            )
+      // Update quote and items (sequential for SQLite)
+      // Update quote
+      const [updatedQuote] = await db
+        .update(quotes)
+        .set({
+          clientId: validatedData.clientId,
+          quoteNumber: validatedData.quoteNumber,
+          status: validatedData.status,
+          issueDate: validatedData.issueDate.toISOString(),
+          expiryDate: validatedData.expiryDate.toISOString(),
+          subtotal: subtotal.toString(),
+          taxRate: taxPercentage.toString(),
+          tax: tax.toString(),
+          total: total.toString(),
+          notes: validatedData.notes || null,
+          updatedAt: new Date().toISOString(),
+          // Set acceptedAt if status is changed to accepted
+          acceptedAt: validatedData.status === 'accepted' && existingQuote[0].status !== 'accepted'
+            ? new Date().toISOString()
+            : existingQuote[0].acceptedAt,
+        })
+        .where(
+          and(
+            eq(quotes.id, id),
+            eq(quotes.companyId, companyId)
           )
-          .returning();
+        )
+        .returning();
 
-        // Delete existing items
-        await tx
-          .delete(quoteItems)
-          .where(eq(quoteItems.quoteId, id));
+      // Delete existing items
+      await db
+        .delete(quoteItems)
+        .where(eq(quoteItems.quoteId, id));
 
-        // Insert new items
-        const itemsToInsert = validatedData.items.map((item) => {
-          // Calculate amount server-side regardless of what client sent
-          const amount = item.quantity * parseFloat(item.unitPrice.toString());
-          
-          return {
-            quoteId: id,
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toString(),
-            amount: amount.toString(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        });
-
-        const items = await tx
-          .insert(quoteItems)
-          .values(itemsToInsert)
-          .returning();
-
-        return NextResponse.json({ ...updatedQuote, items });
+      // Insert new items
+      const itemsToInsert = validatedData.items.map((item) => {
+        // Calculate amount server-side regardless of what client sent
+        const amount = item.quantity * parseFloat(item.unitPrice.toString());
+        
+        return {
+          quoteId: id,
+          description: item.description,
+          quantity: item.quantity.toString(),
+          unitPrice: item.unitPrice.toString(),
+          amount: amount.toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
       });
+
+      const items = await db
+        .insert(quoteItems)
+        .values(itemsToInsert)
+        .returning();
+
+      return NextResponse.json({ ...updatedQuote, items });
     } catch (error) {
       console.error('Error updating quote:', error);
 
@@ -231,7 +229,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ quoteId: string }> }
 ) {
-  return withAuth<{ message: string } | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate quoteId parameter
       const { quoteId } = await params;
@@ -260,7 +258,7 @@ export async function DELETE(
         .update(quotes)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(

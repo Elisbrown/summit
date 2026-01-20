@@ -209,42 +209,34 @@ const formatDate = (date: string | Date) => {
   return format(new Date(date), 'MMM dd, yyyy');
 };
 
-const formatCurrency = (amount: string | number, currency: string = 'USD') => {
+const formatCurrency = (amount: string | number, currency: string = 'XAF') => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
-  if (isNaN(numericAmount)) return `${currency} 0.00`;
+  if (isNaN(numericAmount)) return `${currency} 0`;
   
-  // Format based on currency
-  let formattedAmount: string;
+  // Use a map for specific locales and settings
+  const currencyConfigs: Record<string, { locale: string; decimals: number }> = {
+    'XAF': { locale: 'en-US', decimals: 0 },
+    'XOF': { locale: 'en-US', decimals: 0 },
+    'IDR': { locale: 'en-US', decimals: 0 },
+    'EUR': { locale: 'fr-FR', decimals: 2 },
+    'USD': { locale: 'en-US', decimals: 2 },
+    'GBP': { locale: 'en-GB', decimals: 2 },
+  };
+
+  const config = currencyConfigs[currency] || { locale: 'en-US', decimals: 2 };
   
-  switch (currency) {
-    case 'IDR':
-      formattedAmount = new Intl.NumberFormat('id-ID', { 
-        style: 'currency', 
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(numericAmount);
-      break;
-    case 'EUR':
-      formattedAmount = new Intl.NumberFormat('de-DE', { 
-        style: 'currency', 
-        currency: 'EUR' 
-      }).format(numericAmount);
-      break;
-    default:
-      formattedAmount = new Intl.NumberFormat('en-US', { 
-        style: 'currency', 
-        currency: currency || 'USD' 
-      }).format(numericAmount);
-  }
-  
-  return formattedAmount;
+  return new Intl.NumberFormat(config.locale, { 
+    style: 'currency', 
+    currency: currency,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals
+  }).format(numericAmount);
 };
 
 // Component for creating PDF
 export const QuotePDF: React.FC<QuotePDFProps> = ({ quote, preview = false }) => {
-  const currency = quote.currency || quote.company?.defaultCurrency || 'USD';
+  const currency = quote.currency || quote.company?.defaultCurrency || 'XAF';
   
   const document = (
     <Document>

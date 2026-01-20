@@ -12,6 +12,7 @@ import {
   ChartLegendContent,
   type ChartConfig
 } from "@/components/ui/chart"
+import { DEFAULT_CURRENCY } from "@/lib/currencies"
 import { formatCurrency } from "@/lib/utils"
 
 // Types
@@ -77,7 +78,7 @@ export function NewProfitLossChart({
   data, 
   title = 'Profit & Loss', 
   description = 'Monthly income, expenses, and profit',
-  currency = 'IDR',
+  currency = DEFAULT_CURRENCY,
   startDate,
   endDate
 }: ProfitLossChartProps) {

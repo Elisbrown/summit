@@ -11,7 +11,7 @@ export const getMonthlyCashInflows = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${transactions.transactionDate})`,
       total: sum(sql<number>`${transactions.amount}`),
     })
     .from(transactions)
@@ -24,8 +24,8 @@ export const getMonthlyCashInflows = async (
         eq(transactions.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`);
 
   return query;
 };
@@ -38,7 +38,7 @@ export const getMonthlyCashOutflows = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${transactions.transactionDate})`,
       total: sum(sql<number>`${transactions.amount}`),
     })
     .from(transactions)
@@ -51,8 +51,8 @@ export const getMonthlyCashOutflows = async (
         eq(transactions.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`);
 
   return query;
 };
@@ -88,7 +88,7 @@ export const getCashFlowByCategory = async (
   endDate: string
 ) => {
   // Operating activities categories (day-to-day business operations)
-  // Typically include payments from customers and to suppliers, employee salaries, rent, etc.
+  // SQLite uses LIKE instead of ILIKE (case-insensitive by default for ASCII)
   const operatingCategoryIds = await db
     .select({
       id: sql<number>`id`,
@@ -96,11 +96,11 @@ export const getCashFlowByCategory = async (
     .from(sql`(
       SELECT id FROM expense_categories 
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%salary%', '%rent%', '%utility%', '%office%', '%supplies%', '%marketing%', '%sales%', '%service%'])
+      AND (name LIKE '%salary%' OR name LIKE '%rent%' OR name LIKE '%utility%' OR name LIKE '%office%' OR name LIKE '%supplies%' OR name LIKE '%marketing%' OR name LIKE '%sales%' OR name LIKE '%service%')
       UNION
       SELECT id FROM income_categories
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%sales%', '%service%', '%revenue%', '%fee%', '%subscription%'])
+      AND (name LIKE '%sales%' OR name LIKE '%service%' OR name LIKE '%revenue%' OR name LIKE '%fee%' OR name LIKE '%subscription%')
     ) AS operating_categories`);
 
   // Convert to array of IDs
@@ -131,7 +131,6 @@ export const getCashFlowByCategory = async (
     );
 
   // Investing activities (buying/selling long-term assets)
-  // Typically include purchases of property, equipment, investments
   const investingCategoryIds = await db
     .select({
       id: sql<number>`id`,
@@ -139,11 +138,11 @@ export const getCashFlowByCategory = async (
     .from(sql`(
       SELECT id FROM expense_categories 
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%equipment%', '%asset%', '%property%', '%investment%', '%capital%'])
+      AND (name LIKE '%equipment%' OR name LIKE '%asset%' OR name LIKE '%property%' OR name LIKE '%investment%' OR name LIKE '%capital%')
       UNION
       SELECT id FROM income_categories
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%investment%', '%sale of asset%', '%property sale%', '%interest%', '%dividend%'])
+      AND (name LIKE '%investment%' OR name LIKE '%sale of asset%' OR name LIKE '%property sale%' OR name LIKE '%interest%' OR name LIKE '%dividend%')
     ) AS investing_categories`);
 
   // Convert to array of IDs
@@ -167,7 +166,6 @@ export const getCashFlowByCategory = async (
     );
 
   // Financing activities (changes in debt, loans, owner's equity)
-  // Typically include loan receipts/payments, share issuances, dividends
   const financingCategoryIds = await db
     .select({
       id: sql<number>`id`,
@@ -175,11 +173,11 @@ export const getCashFlowByCategory = async (
     .from(sql`(
       SELECT id FROM expense_categories 
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%loan%', '%interest payment%', '%debt%', '%dividend%', '%share%', '%equity%'])
+      AND (name LIKE '%loan%' OR name LIKE '%interest payment%' OR name LIKE '%debt%' OR name LIKE '%dividend%' OR name LIKE '%share%' OR name LIKE '%equity%')
       UNION
       SELECT id FROM income_categories
       WHERE company_id = ${companyId}
-      AND name ILIKE ANY(ARRAY['%loan%', '%debt%', '%capital%', '%investment%', '%share%', '%equity%'])
+      AND (name LIKE '%loan%' OR name LIKE '%debt%' OR name LIKE '%capital%' OR name LIKE '%investment%' OR name LIKE '%share%' OR name LIKE '%equity%')
     ) AS financing_categories`);
 
   // Convert to array of IDs

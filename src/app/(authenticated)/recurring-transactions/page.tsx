@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import RecurringTransactionsButton from '@/components/dashboard/RecurringTransactionsButton';
+import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
   Table,
@@ -66,13 +67,6 @@ export default function RecurringTransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Format currency
-  const formatCurrency = (amount: string, currency: string) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: currency || 'IDR',
-      minimumFractionDigits: 2
-    }).format(parseFloat(amount));
-  };
   
   // Format date
   const formatDate = (dateString: string | null) => {
@@ -198,7 +192,7 @@ export default function RecurringTransactionsPage() {
                       <TableRow key={expense.id}>
                         <TableCell className="font-medium">{expense.vendor}</TableCell>
                         <TableCell>{expense.category?.name || 'Uncategorized'}</TableCell>
-                        <TableCell>{formatCurrency(expense.amount, expense.currency)}</TableCell>
+                        <TableCell>{formatCurrency(parseFloat(expense.amount), expense.currency)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getFrequencyColor(expense.recurring)}>
                             <RefreshCw className="h-3 w-3 mr-1 inline" />
@@ -246,7 +240,7 @@ export default function RecurringTransactionsPage() {
                         <TableCell className="font-medium">{item.source}</TableCell>
                         <TableCell>{item.client?.name || 'N/A'}</TableCell>
                         <TableCell>{item.category?.name || 'Uncategorized'}</TableCell>
-                        <TableCell>{formatCurrency(item.amount, item.currency)}</TableCell>
+                        <TableCell>{formatCurrency(parseFloat(item.amount), item.currency)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getFrequencyColor(item.recurring)}>
                             <RefreshCw className="h-3 w-3 mr-1 inline" />

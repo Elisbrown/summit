@@ -25,6 +25,7 @@ interface InvoiceEmailProps {
     issueDate: string | Date;
     dueDate: string | Date;
     total: number | string;
+    currency?: string;
     client: {
       name: string;
       email?: string;
@@ -42,12 +43,26 @@ const formatDate = (date: string | Date) => {
   return format(new Date(date), 'PP');
 };
 
-const formatCurrency = (amount: number | string) => {
-  // apply id-ID currency format
-  return new Intl.NumberFormat('id-ID', {
+const formatCurrency = (amount: number | string, currency: string = 'XAF') => {
+  const numericAmount = Number(amount);
+  
+  const currencyConfigs: Record<string, { locale: string; decimals: number }> = {
+    'XAF': { locale: 'fr-FR', decimals: 0 },
+    'XOF': { locale: 'fr-FR', decimals: 0 },
+    'IDR': { locale: 'id-ID', decimals: 0 },
+    'EUR': { locale: 'fr-FR', decimals: 2 },
+    'USD': { locale: 'en-US', decimals: 2 },
+    'GBP': { locale: 'en-GB', decimals: 2 },
+  };
+
+  const config = currencyConfigs[currency] || { locale: 'en-US', decimals: 2 };
+
+  return new Intl.NumberFormat(config.locale, {
     style: 'currency',
-    currency: 'IDR',
-  }).format(Number(amount));
+    currency: currency,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
+  }).format(numericAmount);
 };
 
 export const InvoiceEmail: React.FC<InvoiceEmailProps> = ({
@@ -56,7 +71,8 @@ export const InvoiceEmail: React.FC<InvoiceEmailProps> = ({
   viewUrl,
   paymentUrl,
 }) => {
-  const previewText = `Invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total)}`;
+  const currency = invoice.currency || 'XAF';
+  const previewText = `Invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total, currency)}`;
 
   return (
     <Html>
@@ -83,7 +99,7 @@ export const InvoiceEmail: React.FC<InvoiceEmailProps> = ({
             <Text style={paragraph}>
               We hope this email finds you well. Please find attached your invoice 
               {' '}<strong>{invoice.invoiceNumber}</strong> for the amount of 
-              {' '}<strong>{formatCurrency(invoice.total)}</strong>.
+              {' '}<strong>{formatCurrency(invoice.total, currency)}</strong>.
             </Text>
             
             <Section style={details}>
@@ -97,7 +113,7 @@ export const InvoiceEmail: React.FC<InvoiceEmailProps> = ({
               </Row>
               <Row style={totalRow}>
                 <Column>Total Amount:</Column>
-                <Column align="right">{formatCurrency(invoice.total)}</Column>
+                <Column align="right">{formatCurrency(invoice.total, currency)}</Column>
               </Row>
             </Section>
             

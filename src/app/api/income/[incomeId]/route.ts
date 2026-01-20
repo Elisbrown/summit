@@ -60,7 +60,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ incomeId: string }> }
 ) {
-  return withAuth<IncomeDetailResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
@@ -114,7 +114,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ incomeId: string }> }
 ) {
-  return withAuth<IncomeDetailResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
@@ -191,7 +191,7 @@ export async function PUT(
           incomeDate: incomeDate.toISOString().split('T')[0],
           recurring,
           nextDueDate: calculatedNextDueDate ? calculatedNextDueDate.toISOString().split('T')[0] : null,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
@@ -248,7 +248,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ incomeId: string }> }
 ) {
-  return withAuth<DeleteResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
@@ -285,7 +285,7 @@ export async function DELETE(
         .update(income)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(

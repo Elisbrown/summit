@@ -26,7 +26,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ vendorId: string }> }
 ) {
-  return withAuth<VendorResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
@@ -69,7 +69,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ vendorId: string }> }
 ) {
-  return withAuth<VendorResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
@@ -116,7 +116,7 @@ export async function PUT(
           address: data.address || null,
           website: data.website || null,
           notes: data.notes || null,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(and(
           eq(vendors.id, Number(vendorId)),
@@ -143,7 +143,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ vendorId: string }> }
 ) {
-  return withAuth<VendorResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
@@ -175,7 +175,7 @@ export async function DELETE(
       await db.update(vendors)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(and(
           eq(vendors.id, Number(vendorId)),

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/options';
 import { getProfitLossSummary } from '@/lib/reports/profit-loss';
 import { z } from 'zod';
 import { format, subMonths, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { db } from '@/lib/db';
 import { expenses, income } from '@/lib/db/schema';
 import { and, eq, gte, lte, sql, sum } from 'drizzle-orm';
+import { withAuth } from '@/lib/auth/getAuthInfo';
 
 // Query parameter validation schema
 const querySchema = z.object({
@@ -16,46 +15,41 @@ const querySchema = z.object({
 
 // GET /api/reports/profit-loss - Get profit & loss report
 export async function GET(request: NextRequest) {
-  try {
-    // Authentication check
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user || !session.user.companyId) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  return withAuth<any>(request, async (authInfo) => {
+    try {
+      const { companyId } = authInfo;
+      
+      // Extract query parameters
+      const searchParams = request.nextUrl.searchParams;
+      let startDate = searchParams.get('startDate');
+      let endDate = searchParams.get('endDate');
+      
+      // If no dates provided, default to last 6 months
+      if (!startDate || !endDate) {
+        const today = new Date();
+        endDate = format(today, 'yyyy-MM-dd');
+        startDate = format(subMonths(today, 6), 'yyyy-MM-dd');
+      }
+      
+      // Get profit & loss summary for the specified period
+      const summary = await getProfitLossSummary(companyId, startDate, endDate);
+      
+      // Get monthly breakdown for the chart
+      const months = await getMonthlyBreakdown(companyId, startDate, endDate);
+      
+      return NextResponse.json({
+        ...summary,
+        months
+      });
+      
+    } catch (error) {
+      console.error('Error fetching profit & loss report:', error);
+      return NextResponse.json(
+        { message: 'Failed to fetch profit & loss report' },
+        { status: 500 }
+      );
     }
-    
-    const companyId = parseInt(session.user.companyId);
-    
-    // Extract query parameters
-    const searchParams = request.nextUrl.searchParams;
-    let startDate = searchParams.get('startDate');
-    let endDate = searchParams.get('endDate');
-    
-    // If no dates provided, default to last 6 months
-    if (!startDate || !endDate) {
-      const today = new Date();
-      endDate = format(today, 'yyyy-MM-dd');
-      startDate = format(subMonths(today, 6), 'yyyy-MM-dd');
-    }
-    
-    // Get profit & loss summary for the specified period
-    const summary = await getProfitLossSummary(companyId, startDate, endDate);
-    
-    // Get monthly breakdown for the chart
-    const months = await getMonthlyBreakdown(companyId, startDate, endDate);
-    
-    return NextResponse.json({
-      ...summary,
-      months
-    });
-    
-  } catch (error) {
-    console.error('Error fetching profit & loss report:', error);
-    return NextResponse.json(
-      { message: 'Failed to fetch profit & loss report' },
-      { status: 500 }
-    );
-  }
+  });
 }
 
 // Helper function to get monthly breakdown of income and expenses
@@ -63,7 +57,7 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
   // Get monthly income
   const monthlyIncome = await db
     .select({
-      month: sql<string>`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${income.incomeDate})`,
       total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
     })
     .from(income)
@@ -75,13 +69,13 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
         eq(income.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${income.incomeDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${income.incomeDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${income.incomeDate})`);
   
   // Get monthly expenses
   const monthlyExpenses = await db
     .select({
-      month: sql<string>`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`,
+      month: sql<string>`strftime('%Y-%m', ${expenses.expenseDate})`,
       total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
     })
     .from(expenses)
@@ -93,8 +87,8 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
         eq(expenses.softDelete, false)
       )
     )
-    .groupBy(sql`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${expenses.expenseDate}, 'YYYY-MM')`);
+    .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
+    .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
 
   // Transform the data to get an array of months from startDate to endDate
   const months = [];

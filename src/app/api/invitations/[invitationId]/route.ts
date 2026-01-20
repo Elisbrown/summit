@@ -6,7 +6,13 @@ import { companyInvitations, companies } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return resendClient;
+}
 
 // DELETE /api/invitations/[invitationId] - Cancel an invitation
 export async function DELETE(
@@ -59,7 +65,7 @@ export async function DELETE(
       .update(companyInvitations)
       .set({
         status: 'cancelled',
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(
         and(
@@ -76,7 +82,7 @@ export async function DELETE(
       .where(eq(companies.id, companyId));
     
     // Send cancellation email
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'kugie@summitfinance.app'}>`,
       to: invitation.email,
       subject: `Invitation to ${company?.name || 'Our Company'} cancelled`,

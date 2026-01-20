@@ -30,7 +30,7 @@ type InvoiceDetailResponse = {
   tax: string | null;
   total: string;
   notes: string | null;
-  createdAt: Date;
+  createdAt: string;
   client: {
     id: number;
     name: string;
@@ -41,7 +41,7 @@ type InvoiceDetailResponse = {
 
 // GET /api/invoices - List all invoices with pagination, sorting, and filtering
 export async function GET(request: NextRequest) {
-  return withAuth<InvoiceResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
 
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/invoices - Create a new invoice
 export async function POST(request: NextRequest) {
-  return withAuth<InvoiceDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       
@@ -260,8 +260,8 @@ export async function POST(request: NextRequest) {
         tax: tax.toFixed(2),
         total: total.toFixed(2),
         notes: notes || null,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
         softDelete: false,
       };
 
@@ -283,8 +283,8 @@ export async function POST(request: NextRequest) {
           quantity: quantity.toString(),
           unitPrice: unitPrice.toString(),
           amount: amount.toString(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         
         const itemResult = await db.insert(invoiceItems).values(newItem).returning();

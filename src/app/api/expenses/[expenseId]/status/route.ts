@@ -26,7 +26,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
-  return withAuth<StatusUpdateResponse | ErrorResponse>(req, async (authInfo) => {
+  return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { expenseId } = await params;
@@ -76,7 +76,7 @@ export async function PUT(
         .update(expenses)
         .set({
           status,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(

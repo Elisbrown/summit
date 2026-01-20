@@ -13,16 +13,16 @@ type InvoiceDetailResponse = {
   clientId: number;
   invoiceNumber: string;
   status: string;
-  issueDate: string | Date;
-  dueDate: string | Date;
+  issueDate: string;
+  dueDate: string;
   subtotal: string;
   tax: string | null;
   taxRate: string | null;
   total: string;
   notes: string | null;
-  paidAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   softDelete: boolean;
   client?: any;
   items: any[];
@@ -38,7 +38,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
-  return withAuth<InvoiceDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate invoiceId parameter
       const { invoiceId } = await params;
@@ -102,7 +102,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
-  return withAuth<InvoiceDetailResponse | ErrorResponse>(request, async (authInfo) => {
+  return withAuth<any>(request, async (authInfo) => {
     try {
       // Validate invoiceId parameter
       const { invoiceId } = await params;
@@ -140,64 +140,62 @@ export async function PUT(
       const tax = (subtotal * taxPercentage) / 100;
       const total = subtotal + tax;
 
-      // Start a transaction for updating invoice and items
-      return await db.transaction(async (tx) => {
-        // Update invoice
-        const [updatedInvoice] = await tx
-          .update(invoices)
-          .set({
-            clientId: validatedData.clientId,
-            invoiceNumber: validatedData.invoiceNumber,
-            status: validatedData.status,
-            issueDate: validatedData.issueDate.toISOString(),
-            dueDate: validatedData.dueDate.toISOString(),
-            subtotal: subtotal.toString(),
-            taxRate: taxPercentage.toString(),
-            tax: tax.toString(),
-            total: total.toString(),
-            notes: validatedData.notes || null,
-            updatedAt: new Date(),
-            // Set paidAt if status is changed to paid
-            paidAt: validatedData.status === 'paid' && existingInvoice[0].status !== 'paid'
-              ? new Date()
-              : existingInvoice[0].paidAt,
-          })
-          .where(
-            and(
-              eq(invoices.id, id),
-              eq(invoices.companyId, companyId)
-            )
+      // Update invoice and items (sequential for SQLite)
+      // Update invoice
+      const [updatedInvoice] = await db
+        .update(invoices)
+        .set({
+          clientId: validatedData.clientId,
+          invoiceNumber: validatedData.invoiceNumber,
+          status: validatedData.status,
+          issueDate: validatedData.issueDate.toISOString(),
+          dueDate: validatedData.dueDate.toISOString(),
+          subtotal: subtotal.toString(),
+          taxRate: taxPercentage.toString(),
+          tax: tax.toString(),
+          total: total.toString(),
+          notes: validatedData.notes || null,
+          updatedAt: new Date().toISOString(),
+          // Set paidAt if status is changed to paid
+          paidAt: validatedData.status === 'paid' && existingInvoice[0].status !== 'paid'
+            ? new Date().toISOString()
+            : existingInvoice[0].paidAt,
+        })
+        .where(
+          and(
+            eq(invoices.id, id),
+            eq(invoices.companyId, companyId)
           )
-          .returning();
+        )
+        .returning();
 
-        // Delete existing items
-        await tx
-          .delete(invoiceItems)
-          .where(eq(invoiceItems.invoiceId, id));
+      // Delete existing items
+      await db
+        .delete(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
 
-        // Insert new items
-        const itemsToInsert = validatedData.items.map((item) => {
-          // Calculate amount server-side regardless of what client sent
-          const amount = item.quantity * parseFloat(item.unitPrice.toString());
-          
-          return {
-            invoiceId: id,
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toString(),
-            amount: amount.toString(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        });
-
-        const items = await tx
-          .insert(invoiceItems)
-          .values(itemsToInsert)
-          .returning();
-
-        return NextResponse.json({ ...updatedInvoice, items });
+      // Insert new items
+      const itemsToInsert = validatedData.items.map((item) => {
+        // Calculate amount server-side regardless of what client sent
+        const amount = item.quantity * parseFloat(item.unitPrice.toString());
+        
+        return {
+          invoiceId: id,
+          description: item.description,
+          quantity: item.quantity.toString(),
+          unitPrice: item.unitPrice.toString(),
+          amount: amount.toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
       });
+
+      const items = await db
+        .insert(invoiceItems)
+        .values(itemsToInsert)
+        .returning();
+
+      return NextResponse.json({ ...updatedInvoice, items });
     } catch (error) {
       console.error('Error updating invoice:', error);
 
@@ -250,7 +248,7 @@ export async function DELETE(
         .update(invoices)
         .set({
           softDelete: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
