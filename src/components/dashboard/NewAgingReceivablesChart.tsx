@@ -74,29 +74,29 @@ export function NewAgingReceivablesChart({
     {
       name: "Current",
       key: "current",
-      value: data.current.total,
-      count: data.current.count,
+      value: data?.current?.total || 0,
+      count: data?.current?.count || 0,
       fill: "hsl(var(--chart-1))"
     },
     {
       name: "31-60 Days",
       key: "thirtyToSixty",
-      value: data.thirtyToSixty.total,
-      count: data.thirtyToSixty.count,
+      value: data?.thirtyToSixty?.total || 0,
+      count: data?.thirtyToSixty?.count || 0,
       fill: "hsl(var(--chart-2))"
     },
     {
       name: "61-90 Days",
       key: "sixtyToNinety",
-      value: data.sixtyToNinety.total,
-      count: data.sixtyToNinety.count,
+      value: data?.sixtyToNinety?.total || 0,
+      count: data?.sixtyToNinety?.count || 0,
       fill: "hsl(var(--chart-3))"
     },
     {
       name: "90+ Days",
       key: "overNinety",
-      value: data.overNinety.total,
-      count: data.overNinety.count,
+      value: data?.overNinety?.total || 0,
+      count: data?.overNinety?.count || 0,
       fill: "hsl(var(--chart-4))"
     }
   ]

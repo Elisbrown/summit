@@ -66,7 +66,14 @@ export function InvoiceList({ className }: InvoiceListProps) {
         ...(searchTerm && { search: searchTerm }),
       });
 
-      const response = await fetch(`/api/invoices?${params}`);
+      const response = await fetch(`/api/invoices?${params}`, {
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) {
+        console.log('User not authenticated for invoices');
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('Failed to fetch invoices');

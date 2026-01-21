@@ -149,7 +149,15 @@ export default function SettingsPage() {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/users', {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for users list');
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('Failed to fetch users');
@@ -168,7 +176,15 @@ export default function SettingsPage() {
   const fetchInvitations = async () => {
     setLoadingInvitations(true);
     try {
-      const response = await fetch('/api/invitations');
+      const response = await fetch('/api/invitations', {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for invitations');
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('Failed to fetch invitations');

@@ -96,21 +96,40 @@ const DashboardPage = () => {
         const queryString = params.toString();
         const paramString = queryString ? `?${queryString}` : '';
         
+        const fetchOptions = { credentials: 'include' as RequestCredentials };
+        
+        // Default data structures to prevent UI from breaking or being empty
+        const defaultProfitLoss = { months: [] };
+        const defaultInvoiceSummary = { 
+          overdue: { total: 0, count: 0 }, 
+          unpaid: { total: 0, count: 0 }, 
+          draft: { total: 0, count: 0 }, 
+          paid: { total: 0, count: 0 }, 
+          trends: {} 
+        };
+        const defaultAging = { 
+          current: { total: 0, count: 0 }, 
+          thirtyToSixty: { total: 0, count: 0 }, 
+          sixtyToNinety: { total: 0, count: 0 }, 
+          overNinety: { total: 0, count: 0 } 
+        };
+        const defaultExpenses = { expensesByCategory: [], totalExpenses: 0, expensesByMonth: [] };
+        
         // Fetch profit/loss data
-        const profitLossResponse = await fetch(`/api/reports/profit-loss${paramString}`);
-        const profitLossData = await profitLossResponse.json();
+        const profitLossResponse = await fetch(`/api/reports/profit-loss${paramString}`, fetchOptions);
+        const profitLossData = profitLossResponse.ok ? await profitLossResponse.json() : defaultProfitLoss;
 
         // Fetch invoice summary
-        const invoiceSummaryResponse = await fetch(`/api/reports/invoice-summary${paramString}`);
-        const invoiceSummaryData = await invoiceSummaryResponse.json();
+        const invoiceSummaryResponse = await fetch(`/api/reports/invoice-summary${paramString}`, fetchOptions);
+        const invoiceSummaryData = invoiceSummaryResponse.ok ? await invoiceSummaryResponse.json() : defaultInvoiceSummary;
 
         // Fetch aging receivables
-        const agingReceivablesResponse = await fetch(`/api/reports/aging-receivables${paramString}`);
-        const agingReceivablesData = await agingReceivablesResponse.json();
+        const agingReceivablesResponse = await fetch(`/api/reports/aging-receivables${paramString}`, fetchOptions);
+        const agingReceivablesData = agingReceivablesResponse.ok ? await agingReceivablesResponse.json() : defaultAging;
 
         // Fetch expense breakdown
-        const expensesResponse = await fetch(`/api/reports/expense-breakdown${paramString}`);
-        const expensesData = await expensesResponse.json();
+        const expensesResponse = await fetch(`/api/reports/expense-breakdown${paramString}`, fetchOptions);
+        const expensesData = expensesResponse.ok ? await expensesResponse.json() : defaultExpenses;
 
         setProfitLossData(profitLossData);
         setInvoiceSummary(invoiceSummaryData);
@@ -118,6 +137,11 @@ const DashboardPage = () => {
         setExpensesData(expensesData);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        // Fallback to empty data on error so the dashboard renders
+        setProfitLossData({ months: [] });
+        setInvoiceSummary({ overdue: {}, unpaid: {}, draft: {}, paid: {}, trends: {} });
+        setAgingReceivables({});
+        setExpensesData({ expensesByCategory: [], totalExpenses: 0 });
       } finally {
         setIsLoading(false);
       }
@@ -243,26 +267,26 @@ const DashboardPage = () => {
                   value={formatCurrency(
                     (invoiceSummary.overdue?.total || 0) + (invoiceSummary.unpaid?.total || 0)
                   )}
-                  description={`${formatNumber(invoiceSummary.overdue.count + invoiceSummary.unpaid.count)} open invoices`}
+                  description={`${formatNumber((invoiceSummary.overdue?.count || 0) + (invoiceSummary.unpaid?.count || 0))} open invoices`}
                   icon={DollarSign}
                 />
                 <StatCard
                   title="Overdue"
-                  value={formatCurrency(invoiceSummary.overdue.total)}
-                  description={`${formatNumber(invoiceSummary.overdue.count)} invoices`}
+                  value={formatCurrency(invoiceSummary.overdue?.total || 0)}
+                  description={`${formatNumber(invoiceSummary.overdue?.count || 0)} invoices`}
                   icon={AlertTriangle}
                   trend={invoiceSummary.trends?.overdue}
                 />
                 <StatCard
                   title="Draft Invoices"
-                  value={formatNumber(invoiceSummary.draft.count)}
-                  description={`Worth ${formatCurrency(invoiceSummary.draft.total)}`}
+                  value={formatNumber(invoiceSummary.draft?.count || 0)}
+                  description={`Worth ${formatCurrency(invoiceSummary.draft?.total || 0)}`}
                   icon={FileText}
                 />
                 <StatCard
                   title="Paid Invoices"
-                  value={formatCurrency(invoiceSummary.paid.total)}
-                  description={`${formatNumber(invoiceSummary.paid.count)} invoices`}
+                  value={formatCurrency(invoiceSummary.paid?.total || 0)}
+                  description={`${formatNumber(invoiceSummary.paid?.count || 0)} invoices`}
                   icon={CreditCard}
                   trend={invoiceSummary.trends?.paid}
                 />
@@ -337,23 +361,23 @@ const DashboardPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <StatCard
                       title="Current (0-30 days)"
-                      value={formatCurrency(agingReceivables.current.total)}
-                      description={`${formatNumber(agingReceivables.current.count)} invoices`}
+                      value={formatCurrency(agingReceivables.current?.total || 0)}
+                      description={`${formatNumber(agingReceivables.current?.count || 0)} invoices`}
                     />
                     <StatCard
                       title="31-60 days"
-                      value={formatCurrency(agingReceivables.thirtyToSixty.total)}
-                      description={`${formatNumber(agingReceivables.thirtyToSixty.count)} invoices`}
+                      value={formatCurrency(agingReceivables.thirtyToSixty?.total || 0)}
+                      description={`${formatNumber(agingReceivables.thirtyToSixty?.count || 0)} invoices`}
                     />
                     <StatCard
                       title="61-90 days"
-                      value={formatCurrency(agingReceivables.sixtyToNinety.total)}
-                      description={`${formatNumber(agingReceivables.sixtyToNinety.count)} invoices`}
+                      value={formatCurrency(agingReceivables.sixtyToNinety?.total || 0)}
+                      description={`${formatNumber(agingReceivables.sixtyToNinety?.count || 0)} invoices`}
                     />
                     <StatCard
                       title="Over 90 days"
-                      value={formatCurrency(agingReceivables.overNinety.total)}
-                      description={`${formatNumber(agingReceivables.overNinety.count)} invoices`}
+                      value={formatCurrency(agingReceivables.overNinety?.total || 0)}
+                      description={`${formatNumber(agingReceivables.overNinety?.count || 0)} invoices`}
                     />
                   </div>
                 </div>

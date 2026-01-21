@@ -87,7 +87,16 @@ export default function CompanySettings() {
     async function fetchCompanyData() {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/companies/current');
+        const response = await fetch('/api/companies/current', {
+          credentials: 'include',
+        });
+        
+        // Don't show error for auth issues - user may not be logged in yet
+        if (response.status === 401) {
+          console.log('User not authenticated for company settings');
+          return;
+        }
+        
         if (!response.ok) throw new Error('Failed to fetch company data');
         
         const company = await response.json();

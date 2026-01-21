@@ -81,7 +81,15 @@ export default function IncomePage() {
         url += `&endDate=${dateRange.endDate}`;
       }
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) {
+        console.log('User not authenticated for income');
+        return;
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch income entries");
       
       const data = await response.json();
@@ -97,7 +105,11 @@ export default function IncomePage() {
   
   const fetchCategories = async () => {
     try {
-      const response = await fetch("/api/income-categories");
+      const response = await fetch("/api/income-categories", {
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) return;
       if (!response.ok) throw new Error("Failed to fetch categories");
       
       const data = await response.json();

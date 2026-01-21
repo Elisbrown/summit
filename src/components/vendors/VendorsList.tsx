@@ -52,7 +52,16 @@ export default function VendorsList() {
         url.searchParams.append("search", search);
       }
       
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for vendors');
+        return;
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch vendors");
       
       const data = await response.json();

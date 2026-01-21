@@ -76,7 +76,14 @@ export function QuoteList({ className }: QuoteListProps) {
         ...(searchTerm && { search: searchTerm }),
       });
 
-      const response = await fetch(`/api/quotes?${params}`);
+      const response = await fetch(`/api/quotes?${params}`, {
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) {
+        console.log('User not authenticated for quotes');
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('Failed to fetch quotes');

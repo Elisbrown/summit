@@ -96,6 +96,7 @@ export function initializeDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       paid_at TEXT,
+      xendit_invoice_url TEXT,
       soft_delete INTEGER DEFAULT 0 NOT NULL
     );
 
@@ -242,6 +243,19 @@ export function initializeDatabase() {
       expires TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       used_at TEXT
+    );
+
+    -- Client Users
+    CREATE TABLE IF NOT EXISTS client_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL REFERENCES clients(id),
+      email TEXT NOT NULL,
+      name TEXT,
+      token_version INTEGER DEFAULT 1 NOT NULL,
+      last_login_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      soft_delete INTEGER DEFAULT 0 NOT NULL
     );
 
     -- Company Invitations

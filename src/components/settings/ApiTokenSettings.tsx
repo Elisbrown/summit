@@ -59,7 +59,16 @@ export default function ApiTokenSettings() {
   const fetchTokens = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/api-tokens');
+      const response = await fetch('/api/api-tokens', {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for API tokens');
+        return;
+      }
+      
       if (!response.ok) throw new Error('Failed to fetch API tokens');
       const data = await response.json();
       setTokens(data);

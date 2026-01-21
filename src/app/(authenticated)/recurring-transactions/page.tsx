@@ -91,12 +91,23 @@ export default function RecurringTransactionsPage() {
     
     try {
       // Fetch recurring expenses
-      const expensesRes = await fetch('/api/expenses?recurring=true');
+      const expensesRes = await fetch('/api/expenses?recurring=true', {
+        credentials: 'include',
+      });
+      
+      if (expensesRes.status === 401) {
+        console.log('User not authenticated for recurring transactions');
+        return;
+      }
+      
       if (!expensesRes.ok) throw new Error('Failed to fetch recurring expenses');
       const expensesData = await expensesRes.json();
       
       // Fetch recurring income
-      const incomeRes = await fetch('/api/income?recurring=true');
+      const incomeRes = await fetch('/api/income?recurring=true', {
+        credentials: 'include',
+      });
+      
       if (!incomeRes.ok) throw new Error('Failed to fetch recurring income');
       const incomeData = await incomeRes.json();
       

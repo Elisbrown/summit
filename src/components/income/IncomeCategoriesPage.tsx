@@ -38,7 +38,16 @@ export default function IncomeCategoriesPage() {
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/income-categories");
+      const response = await fetch("/api/income-categories", {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for income categories');
+        return;
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch categories");
       
       const data = await response.json();

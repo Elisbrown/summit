@@ -107,7 +107,15 @@ function ClientsPageContent() {
       }
       
       try {
-        const response = await fetch(`/api/clients?${query.toString()}`);
+        const response = await fetch(`/api/clients?${query.toString()}`, {
+          credentials: 'include',
+        });
+        
+        // Don't show error for auth issues
+        if (response.status === 401) {
+          console.log('User not authenticated for clients');
+          return;
+        }
         
         if (!response.ok) {
           throw new Error('Failed to fetch clients');

@@ -56,3 +56,4 @@ data/
 
 # Uploads (use git lfs or exclude)
 # public/uploads/
+scripts/test-suite.ts

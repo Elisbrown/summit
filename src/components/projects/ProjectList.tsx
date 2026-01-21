@@ -48,7 +48,16 @@ export function ProjectList({ className }: ProjectListProps) {
       if (search) params.set('search', search);
       params.set('limit', '50');
 
-      const response = await fetch(`/api/projects?${params.toString()}`);
+      const response = await fetch(`/api/projects?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for projects');
+        return;
+      }
+      
       if (!response.ok) throw new Error('Failed to fetch projects');
 
       const data = await response.json();

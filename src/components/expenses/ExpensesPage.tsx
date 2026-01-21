@@ -66,7 +66,16 @@ export default function ExpensesPage() {
         url += `&status=${selectedStatus}`;
       }
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      // Don't show error for auth issues
+      if (response.status === 401) {
+        console.log('User not authenticated for expenses');
+        return;
+      }
+      
       if (!response.ok) throw new Error("Failed to fetch expenses");
       
       const data = await response.json();
@@ -83,7 +92,11 @@ export default function ExpensesPage() {
   
   const fetchCategories = async () => {
     try {
-      const response = await fetch("/api/expense-categories");
+      const response = await fetch("/api/expense-categories", {
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) return;
       if (!response.ok) throw new Error("Failed to fetch categories");
       
       const data = await response.json();
