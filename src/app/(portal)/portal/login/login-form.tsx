@@ -39,6 +39,7 @@ export default function LoginForm() {
   // Form submission handler
   async function onSubmit(data: FormValues) {
     setIsLoading(true);
+    setEmailSent(false); // Reset state
 
     try {
       const response = await fetch('/api/portal/auth/magic-link', {
@@ -52,6 +53,15 @@ export default function LoginForm() {
       const result = await response.json();
 
       if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 404) {
+          form.setError('email', { 
+            type: 'manual', 
+            message: 'No client account found with this email.' 
+          });
+          return; // Stop here, don't throw
+        }
+        
         throw new Error(result.error || 'Failed to send magic link');
       }
 
