@@ -97,6 +97,7 @@ export const quotes = sqliteTable('quotes', {
   tax: text('tax').default('0'),
   taxRate: text('tax_rate').default('0'),
   total: text('total').notNull(),
+  currency: text('currency').default('XAF').notNull(),
   notes: text('notes'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
