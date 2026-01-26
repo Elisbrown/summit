@@ -64,8 +64,8 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
     .where(
       and(
         eq(income.companyId, companyId),
-        gte(income.incomeDate, startDate),
-        lte(income.incomeDate, endDate),
+        gte(sql`date(${income.incomeDate})`, startDate),
+        lte(sql`date(${income.incomeDate})`, endDate),
         eq(income.softDelete, false)
       )
     )
@@ -82,8 +82,8 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
     .where(
       and(
         eq(expenses.companyId, companyId),
-        gte(expenses.expenseDate, startDate),
-        lte(expenses.expenseDate, endDate),
+        gte(sql`date(${expenses.expenseDate})`, startDate),
+        lte(sql`date(${expenses.expenseDate})`, endDate),
         eq(expenses.softDelete, false)
       )
     )

@@ -17,11 +17,12 @@ export const getInvoiceSummary = async (
   );
 
   // Add date range conditions if provided
+  // Use date() function to extract date part from ISO strings for proper comparison
   if (startDate && endDate) {
     baseConditions = and(
       baseConditions,
-      gte(invoices.issueDate, startDate),
-      lte(invoices.issueDate, endDate)
+      gte(sql`date(${invoices.issueDate})`, startDate),
+      lte(sql`date(${invoices.issueDate})`, endDate)
     );
   }
 
@@ -119,8 +120,8 @@ export const getInvoiceSummary = async (
         and(
           eq(invoices.companyId, companyId),
           eq(invoices.status, 'paid'),
-          gte(invoices.issueDate, formattedPrevStartDate),
-          lte(invoices.issueDate, formattedPrevEndDate),
+          gte(sql`date(${invoices.issueDate})`, formattedPrevStartDate),
+          lte(sql`date(${invoices.issueDate})`, formattedPrevEndDate),
           eq(invoices.softDelete, false)
         )
       );
@@ -136,8 +137,8 @@ export const getInvoiceSummary = async (
         and(
           eq(invoices.companyId, companyId),
           eq(invoices.status, 'overdue'),
-          gte(invoices.issueDate, formattedPrevStartDate),
-          lte(invoices.issueDate, formattedPrevEndDate),
+          gte(sql`date(${invoices.issueDate})`, formattedPrevStartDate),
+          lte(sql`date(${invoices.issueDate})`, formattedPrevEndDate),
           eq(invoices.softDelete, false)
         )
       );
@@ -246,8 +247,8 @@ export const getAgingReceivables = async (
   if (startDate && endDate) {
     baseConditions = and(
       baseConditions,
-      gte(invoices.issueDate, startDate),
-      lte(invoices.issueDate, endDate)
+      gte(sql`date(${invoices.issueDate})`, startDate),
+      lte(sql`date(${invoices.issueDate})`, endDate)
     );
   }
 

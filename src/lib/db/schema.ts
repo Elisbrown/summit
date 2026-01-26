@@ -245,6 +245,22 @@ export const companyInvitations = sqliteTable('company_invitations', {
   usedAt: text('used_at'),
 });
 
+// ============ PAYMENT METHODS ============
+export const paymentMethods = sqliteTable('payment_methods', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  companyId: integer('company_id').notNull().references(() => companies.id),
+  type: text('type').$type<'mtn_momo' | 'orange_money' | 'bank_transfer'>().notNull(),
+  accountName: text('account_name').notNull(),
+  accountNumber: text('account_number').notNull(),
+  bankName: text('bank_name'),
+  bankCode: text('bank_code'),
+  bankBranch: text('bank_branch'),
+  bankAddress: text('bank_address'),
+  isEnabled: integer('is_enabled', { mode: 'boolean' }).default(true).notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+});
+
 // ============ ACCOUNTS ============
 export const accounts = sqliteTable('accounts', {
   id: integer('id').primaryKey({ autoIncrement: true }),

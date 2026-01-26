@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { invoices, invoiceItems, clients } from '@/lib/db/schema';
+import { invoices, invoiceItems, clients, companies } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { invoiceSchema } from '@/lib/validations/invoice';
 import { ZodError } from 'zod';
@@ -25,6 +25,7 @@ type InvoiceDetailResponse = {
   updatedAt: string;
   softDelete: boolean;
   client?: any;
+  company?: any;
   items: any[];
 };
 
@@ -45,14 +46,24 @@ export async function GET(
       const id = parseInt(invoiceId);
       const { companyId } = authInfo;
 
-      // Get invoice with client data
-      const [invoiceWithClient] = await db
+      // Get invoice with client and company data
+      const [invoiceWithData] = await db
         .select({
           invoice: invoices,
           client: clients,
+          company: {
+            name: companies.name,
+            email: companies.email,
+            phone: companies.phone,
+            address: companies.address,
+            logoUrl: companies.logoUrl,
+            bankAccount: companies.bankAccount,
+            defaultCurrency: companies.defaultCurrency,
+          },
         })
         .from(invoices)
         .leftJoin(clients, eq(invoices.clientId, clients.id))
+        .leftJoin(companies, eq(invoices.companyId, companies.id))
         .where(
           and(
             eq(invoices.id, id),
@@ -61,7 +72,7 @@ export async function GET(
           )
         );
 
-      if (!invoiceWithClient) {
+      if (!invoiceWithData) {
         return NextResponse.json({ message: 'Invoice not found' }, { status: 404 });
       }
 
@@ -73,8 +84,9 @@ export async function GET(
 
       // Format response
       const response = {
-        ...invoiceWithClient.invoice,
-        client: invoiceWithClient.client,
+        ...invoiceWithData.invoice,
+        client: invoiceWithData.client,
+        company: invoiceWithData.company,
         items,
       };
 
@@ -140,7 +152,12 @@ export async function PUT(
       const tax = (subtotal * taxPercentage) / 100;
       const total = subtotal + tax;
 
-      // Update invoice and items (sequential for SQLite)
+      // Handle Income Logic
+      // If status is "paid", ensuring we have an income record
+      // If status was "paid" and is now changed to something else, remove income record
+      const isPaid = validatedData.status === 'paid';
+      const wasPaid = existingInvoice[0].status === 'paid';
+
       // Update invoice
       const [updatedInvoice] = await db
         .update(invoices)
@@ -157,9 +174,9 @@ export async function PUT(
           notes: validatedData.notes || null,
           updatedAt: new Date().toISOString(),
           // Set paidAt if status is changed to paid
-          paidAt: validatedData.status === 'paid' && existingInvoice[0].status !== 'paid'
+          paidAt: isPaid && !wasPaid
             ? new Date().toISOString()
-            : existingInvoice[0].paidAt,
+            : (isPaid ? existingInvoice[0].paidAt : null), // Reset if not paid
         })
         .where(
           and(
@@ -194,6 +211,56 @@ export async function PUT(
         .insert(invoiceItems)
         .values(itemsToInsert)
         .returning();
+
+      // --- INCOME RECORD MANAGEMENT ---
+      if (isPaid && !wasPaid) {
+        // Invoice just marked as paid - Create income record
+        
+        // Import income table lazily or at top if not imported
+        const { income } = await import('@/lib/db/schema');
+        
+        await db.insert(income).values({
+          companyId,
+          clientId: validatedData.clientId,
+          invoiceId: id,
+          source: 'Invoice Payment',
+          description: `Payment for Invoice #${validatedData.invoiceNumber}`,
+          amount: total.toString(),
+          currency: updatedInvoice.currency,
+          incomeDate: new Date().toISOString(), // Use current date for payment
+          recurring: 'none',
+          categoryId: null, // User can categorize later
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else if (!isPaid && wasPaid) {
+        // Invoice was paid, now it's not (e.g., marked as unpaid/draft) - Delete associated income
+        const { income } = await import('@/lib/db/schema');
+        
+        await db
+          .delete(income)
+          .where(
+            and(
+              eq(income.invoiceId, id),
+              eq(income.companyId, companyId)
+            )
+          );
+      } else if (isPaid && wasPaid && existingInvoice[0].total !== total.toString()) {
+          // Amount changed but still paid - Update income record
+          const { income } = await import('@/lib/db/schema');
+          await db
+              .update(income)
+              .set({
+                  amount: total.toString(),
+                  updatedAt: new Date().toISOString(),
+              })
+              .where(
+                  and(
+                      eq(income.invoiceId, id),
+                      eq(income.companyId, companyId)
+                  )
+              );
+      }
 
       return NextResponse.json({ ...updatedInvoice, items });
     } catch (error) {

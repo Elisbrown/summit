@@ -67,6 +67,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import CompanySettings from '@/components/settings/CompanySettings';
 import ApiTokenSettings from '@/components/settings/ApiTokenSettings';
 import ProfileSettings from '@/components/settings/ProfileSettings';
+import { PaymentMethodSettings } from '@/components/settings/PaymentMethodSettings';
 
 // Form validation schema for inviting users
 const inviteFormSchema = z.object({
@@ -308,7 +309,7 @@ export default function SettingsPage() {
   return (
     <div className="container py-10">
       <Tabs defaultValue="account" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="account" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             <span>Account</span>
@@ -320,6 +321,10 @@ export default function SettingsPage() {
           <TabsTrigger value="company" className="flex items-center gap-2">
             <SettingsIcon className="h-4 w-4" />
             <span>Company</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            <span>Payments</span>
           </TabsTrigger>
           <TabsTrigger value="api-tokens" className="flex items-center gap-2">
             <KeyRound className="h-4 w-4" />
@@ -715,6 +720,10 @@ export default function SettingsPage() {
           <CompanySettings />
         </TabsContent>
         
+        <TabsContent value="payments">
+          <PaymentMethodSettings />
+        </TabsContent>
+
         <TabsContent value="api-tokens">
           <ApiTokenSettings />
         </TabsContent>

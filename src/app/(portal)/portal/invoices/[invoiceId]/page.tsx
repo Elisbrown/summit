@@ -1,73 +1,79 @@
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { requireClientAuth } from '@/lib/auth/client/utils';
-import { db } from '@/lib/db';
-import { invoices, invoiceItems } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { PortalInvoicePDF } from '@/components/portal/PortalInvoicePDF';
 
-export const metadata: Metadata = {
-  title: 'Invoice Details',
-  description: 'View invoice details',
-};
+interface InvoiceData {
+  id: number;
+  invoiceNumber: string;
+  status: string;
+  issueDate: string;
+  dueDate: string;
+  subtotal: string;
+  tax: string;
+  total: string;
+  currency: string;
+  notes: string | null;
+  xenditInvoiceUrl: string | null;
+  paidAt: string | null;
+  taxRate: string | null;
+  items: Array<{
+    id: number;
+    description: string;
+    quantity: string;
+    unitPrice: string;
+    amount: string;
+  }>;
+}
 
-export default async function InvoiceDetailPage({
-  params,
-}: {
-  params: Promise<{ invoiceId: string }>;
-}) {
-  // This function redirects to login if not authenticated
-  const session = await requireClientAuth();
+export default function InvoiceDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const invoiceId = Number(params.invoiceId);
   
-  const { invoiceId } = await params;
-  
-  // Get invoice details with items
-  const invoiceData = await db
-    .select({
-      id: invoices.id,
-      invoiceNumber: invoices.invoiceNumber,
-      status: invoices.status,
-      issueDate: invoices.issueDate,
-      dueDate: invoices.dueDate,
-      subtotal: invoices.subtotal,
-      tax: invoices.tax,
-      total: invoices.total,
-      currency: invoices.currency,
-      notes: invoices.notes,
-      xenditInvoiceUrl: invoices.xenditInvoiceUrl,
-      paidAt: invoices.paidAt,
-      taxRate: invoices.taxRate,
-    })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.id, parseInt(invoiceId)),
-        eq(invoices.clientId, session.clientId),
-        eq(invoices.softDelete, false)
-      )
-    )
-    .limit(1);
+  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // If invoice not found or doesn't belong to current client
-  if (!invoiceData.length) {
-    notFound();
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        const response = await fetch(`/api/portal/invoices/${invoiceId}`);
+        if (!response.ok) {
+          router.push('/portal/invoices');
+          return;
+        }
+        const data = await response.json();
+        setInvoice(data);
+      } catch (error) {
+        console.error('Failed to fetch invoice:', error);
+        router.push('/portal/invoices');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (invoiceId) fetchInvoice();
+  }, [invoiceId, router]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
-  const invoice = invoiceData[0];
-
-  // Get invoice items
-  const items = await db
-    .select({
-      id: invoiceItems.id,
-      description: invoiceItems.description,
-      quantity: invoiceItems.quantity,
-      unitPrice: invoiceItems.unitPrice,
-      amount: invoiceItems.amount,
-    })
-    .from(invoiceItems)
-    .where(eq(invoiceItems.invoiceId, parseInt(invoiceId)));
+  if (!invoice) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <p>Invoice not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -92,7 +98,8 @@ export default async function InvoiceDetailPage({
               {new Date(invoice.issueDate).toLocaleDateString()} - {new Date(invoice.dueDate).toLocaleDateString()}
             </p>
           </div>
-          <div>
+          <div className="flex items-center gap-3">
+            <PortalInvoicePDF invoiceId={invoice.id} invoiceNumber={invoice.invoiceNumber} />
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
               invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
@@ -127,7 +134,7 @@ export default async function InvoiceDetailPage({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {items.map((item) => (
+                  {invoice.items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.description}

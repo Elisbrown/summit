@@ -25,48 +25,33 @@ export async function GET(request: NextRequest) {
     const endDate = new Date();
     const startDate = subMonths(startOfMonth(endDate), months - 1);
     
-    // Convert dates to ISO strings for SQL
-    const startDateStr = startDate.toISOString();
-    const endDateStr = endDate.toISOString();
+    // Convert dates to yyyy-MM-dd format for SQL comparison
+    const startDateStr = format(startDate, 'yyyy-MM-dd');
+    const endDateStr = format(endDate, 'yyyy-MM-dd');
     
-    // First, get all categories for the company
-    const categoriesResult = await db
+    // Get expense totals by category using aggregation (efficient and includes uncategorized)
+    const expensesByCategoryResult = await db
       .select({
-        id: expenseCategories.id,
         name: expenseCategories.name,
+        totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS NUMERIC)), 0)`.as('total_amount'),
       })
-      .from(expenseCategories)
+      .from(expenses)
+      .leftJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(
         and(
-          eq(expenseCategories.companyId, companyId),
-          eq(expenseCategories.softDelete, false)
+          eq(expenses.companyId, companyId),
+          eq(expenses.softDelete, false),
+          gte(sql`date(${expenses.expenseDate})`, startDateStr),
+          lte(sql`date(${expenses.expenseDate})`, endDateStr)
         )
-      );
+      )
+      .groupBy(expenses.categoryId, expenseCategories.name);
+
+    const expensesByCategory = expensesByCategoryResult.map(item => ({
+      category: item.name || 'Uncategorized',
+      amount: parseFloat(item.totalAmount as string),
+    }));
     
-    // Now get expense totals by category using Drizzle's query builder with SQL functions
-    const expensesByCategoryPromises = categoriesResult.map(async (category) => {
-      const result = await db
-        .select({
-          totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS NUMERIC)), 0)`.as('total_amount'),
-        })
-        .from(expenses)
-        .where(
-          and(
-            eq(expenses.categoryId, category.id),
-            eq(expenses.companyId, companyId),
-            eq(expenses.softDelete, false),
-            gte(expenses.expenseDate, startDateStr),
-            lte(expenses.expenseDate, endDateStr)
-          )
-        );
-      
-      return {
-        category: category.name,
-        amount: parseFloat(result[0].totalAmount as string),
-      };
-    });
-    
-    const expensesByCategory = await Promise.all(expensesByCategoryPromises);
     // Sort by amount descending
     expensesByCategory.sort((a, b) => b.amount - a.amount);
     
@@ -81,8 +66,8 @@ export async function GET(request: NextRequest) {
         and(
           eq(expenses.companyId, companyId),
           eq(expenses.softDelete, false),
-          gte(expenses.expenseDate, startDateStr),
-          lte(expenses.expenseDate, endDateStr)
+          gte(sql`date(${expenses.expenseDate})`, startDateStr),
+          lte(sql`date(${expenses.expenseDate})`, endDateStr)
         )
       )
       .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)

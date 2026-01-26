@@ -273,6 +273,22 @@ export function initializeDatabase() {
       used_at TEXT
     );
 
+    -- Payment Methods
+    CREATE TABLE IF NOT EXISTS payment_methods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(id),
+      type TEXT NOT NULL,
+      account_name TEXT NOT NULL,
+      account_number TEXT NOT NULL,
+      bank_name TEXT,
+      bank_code TEXT,
+      bank_branch TEXT,
+      bank_address TEXT,
+      is_enabled INTEGER DEFAULT 1 NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Accounts
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -7,6 +7,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
 
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
 // GET /api/projects/[projectId]/files - List files
 export async function GET(
   request: NextRequest,
@@ -124,9 +126,12 @@ export async function POST(
         return NextResponse.json({ message: 'No file provided' }, { status: 400 });
       }
 
-      // Validate file size/type if needed
-      // const maxBytes = 10 * 1024 * 1024; // 10MB
-      // if (file.size > maxBytes) ...
+      // Validate file size (100MB limit)
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ 
+          message: `File size exceeds the 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.` 
+        }, { status: 400 });
+      }
 
       const buffer = Buffer.from(await file.arrayBuffer());
       const timestamp = Date.now();

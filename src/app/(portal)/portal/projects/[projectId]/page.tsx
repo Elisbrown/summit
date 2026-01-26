@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Kanban as KanbanIcon, FileText, Loader2, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Kanban as KanbanIcon, FileText, Loader2, Calendar, Users, Upload } from 'lucide-react';
 import { KanbanBoard } from '@/components/projects/KanbanBoard';
 import { ProjectGantt } from '@/components/projects/ProjectGantt';
 import { toast } from 'sonner';
@@ -40,6 +40,7 @@ export default function ClientProjectDetailPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const fetchProject = async () => {
     try {
@@ -90,6 +91,44 @@ export default function ClientProjectDetailPage() {
       fetchFiles();
     }
   }, [projectId]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (100MB limit)
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`File size exceeds 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/portal/projects/${projectId}/files`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Upload failed');
+      }
+
+      const newFile = await res.json();
+      setFiles(prev => [newFile, ...prev]);
+      toast.success('File uploaded successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
 
   // Reply state
   const [replyingTo, setReplyingTo] = useState<any>(null);
@@ -237,6 +276,33 @@ export default function ClientProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="files" className="mt-6">
+             {/* File Upload Section */}
+             <div className="mb-4 p-4 bg-white rounded-lg border">
+               <div className="flex items-center justify-between">
+                 <div>
+                   <h3 className="font-medium">Upload Files</h3>
+                   <p className="text-sm text-muted-foreground">Max file size: 100MB</p>
+                 </div>
+                 <label className="cursor-pointer">
+                   <input
+                     type="file"
+                     className="hidden"
+                     onChange={handleFileUpload}
+                     disabled={uploading}
+                   />
+                   <Button variant="outline" disabled={uploading} asChild>
+                     <span>
+                       {uploading ? (
+                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading...</>
+                       ) : (
+                         <><Upload className="h-4 w-4 mr-2" />Upload File</>
+                       )}
+                     </span>
+                   </Button>
+                 </label>
+               </div>
+             </div>
+             
              <div className="bg-white rounded-lg border divide-y">
                  {files.length === 0 ? (
                      <div className="p-8 text-center text-muted-foreground">No files uploaded yet.</div>
@@ -248,7 +314,7 @@ export default function ClientProjectDetailPage() {
                                  <div>
                                      <p className="font-medium text-sm">{file.name}</p>
                                      <p className="text-xs text-muted-foreground">
-                                         {file.size ? Math.round(file.size / 1024) + ' KB' : ''} · Uploaded by {file.uploadedBy}
+                                         {file.size ? (file.size >= 1024 * 1024 ? Math.round(file.size / 1024 / 1024) + ' MB' : Math.round(file.size / 1024) + ' KB') : ''} · Uploaded by {file.uploadedBy}
                                      </p>
                                  </div>
                              </div>

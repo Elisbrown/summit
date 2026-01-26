@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/getAuthInfo';
 import { db } from '@/lib/db';
-import { invoices, clients, companies } from '@/lib/db/schema';
+import { invoices, clients, companies, paymentMethods } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { sendEmail, getPaymentRequestEmailHtml } from '@/lib/email';
+import { sendEmail, getPaymentRequestEmailHtml, PaymentMethodData } from '@/lib/email';
 import { formatCurrency } from '@/lib/utils';
 
 export async function POST(
@@ -50,6 +50,12 @@ export async function POST(
         );
       }
 
+      // Fetch payment methods for the company
+      const paymentMethodsData = await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.companyId, authInfo.companyId));
+
       // Format currency
       const formattedAmount = formatCurrency(
         parseFloat(invoice.total),
@@ -58,13 +64,14 @@ export async function POST(
       
       const rawAmount = Math.ceil(parseFloat(invoice.total));
 
-      // Generate email HTML
+      // Generate email HTML with dynamic payment methods
       const emailHtml = getPaymentRequestEmailHtml(
         invoice.invoiceNumber,
         formattedAmount,
         client.name,
         rawAmount,
-        company?.logoUrl || undefined
+        company?.logoUrl || undefined,
+        paymentMethodsData as PaymentMethodData[]
       );
 
       // Send email
