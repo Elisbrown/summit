@@ -66,7 +66,7 @@ export async function GET(
           .select()
           .from(invoices)
           .where(eq(invoices.id, transaction.relatedInvoiceId));
-        
+
         if (invoice) {
           relatedEntity = { type: 'invoice', data: invoice };
         }
@@ -75,7 +75,7 @@ export async function GET(
           .select()
           .from(expenses)
           .where(eq(expenses.id, transaction.relatedExpenseId));
-        
+
         if (expense) {
           relatedEntity = { type: 'expense', data: expense };
         }
@@ -84,7 +84,7 @@ export async function GET(
           .select()
           .from(income)
           .where(eq(income.id, transaction.relatedIncomeId));
-        
+
         if (incomeItem) {
           relatedEntity = { type: 'income', data: incomeItem };
         }
@@ -134,7 +134,7 @@ export async function PUT(
         );
       }
 
-      const { 
+      const {
         accountId, amount, description, type, status,
         currency, transactionDate, categoryId, relatedInvoiceId, relatedExpenseId, relatedIncomeId, reconciled
       } = validation.data;
@@ -181,7 +181,7 @@ export async function PUT(
       }
 
       // Update transaction
-      const [updatedTransaction] = await db
+      await db
         .update(transactions)
         .set({
           accountId,
@@ -198,18 +198,20 @@ export async function PUT(
           reconciled: !!reconciled,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(transactions.id, id))
-        .returning();
+        .where(eq(transactions.id, id));
+
+      const [updatedTransaction] = await db.select().from(transactions).where(eq(transactions.id, id));
 
       // Update account balance
-      const [updatedAccount] = await db
+      await db
         .update(accounts)
         .set({
           currentBalance: newBalance.toString(),
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(accounts.id, accountId))
-        .returning();
+        .where(eq(accounts.id, accountId));
+
+      const [updatedAccount] = await db.select().from(accounts).where(eq(accounts.id, accountId));
 
       return NextResponse.json({
         ...updatedTransaction,
@@ -267,27 +269,27 @@ export async function DELETE(
       const { transaction, account } = existingTransaction[0];
 
       if (!account) {
-         // If account is missing (soft deleted?), just delete transaction?
-         // Or just mark as deleted.
+        // If account is missing (soft deleted?), just delete transaction?
+        // Or just mark as deleted.
       } else {
-         // Reverse balance effect
-         let currentBalance = parseFloat(account.currentBalance);
-         const transactionAmount = parseFloat(transaction.amount);
+        // Reverse balance effect
+        let currentBalance = parseFloat(account.currentBalance);
+        const transactionAmount = parseFloat(transaction.amount);
 
-         if (transaction.type === 'credit') {
-           currentBalance -= transactionAmount;
-         } else if (transaction.type === 'debit') {
-           currentBalance += transactionAmount;
-         }
+        if (transaction.type === 'credit') {
+          currentBalance -= transactionAmount;
+        } else if (transaction.type === 'debit') {
+          currentBalance += transactionAmount;
+        }
 
-          // Update account
-          await db
-            .update(accounts)
-            .set({
-              currentBalance: currentBalance.toString(),
-              updatedAt: new Date().toISOString(),
-            })
-            .where(eq(accounts.id, account.id));
+        // Update account
+        await db
+          .update(accounts)
+          .set({
+            currentBalance: currentBalance.toString(),
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(accounts.id, account.id));
       }
 
       // Soft delete transaction

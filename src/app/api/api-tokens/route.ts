@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       const { prefix, secret, fullToken } = generateApiTokenParts();
       const tokenHash = await hashTokenSecret(secret);
 
-      const [newApiToken] = await db
+      const [insertResult] = await db
         .insert(apiTokens)
         .values({
           userId,
@@ -74,14 +74,18 @@ export async function POST(request: NextRequest) {
           tokenHash,
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
           createdAt: new Date().toISOString(),
-        })
-        .returning({
+        });
+
+      const [newApiToken] = await db
+        .select({
           id: apiTokens.id,
           name: apiTokens.name,
           tokenPrefix: apiTokens.tokenPrefix,
           expiresAt: apiTokens.expiresAt,
           createdAt: apiTokens.createdAt,
-        });
+        })
+        .from(apiTokens)
+        .where(eq(apiTokens.id, insertResult.insertId));
 
       return NextResponse.json({
         ...newApiToken,
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.error('Error creating API token:', error);
       // Handle potential unique constraint violation for tokenPrefix if not handled by generateApiTokenParts
       if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint')) {
-          return NextResponse.json({ message: 'Failed to generate a unique token prefix. Please try again.' }, { status: 500 });
+        return NextResponse.json({ message: 'Failed to generate a unique token prefix. Please try again.' }, { status: 500 });
       }
       return NextResponse.json({ message: 'Failed to create API token' }, { status: 500 });
     }

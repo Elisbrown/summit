@@ -119,15 +119,20 @@ export async function POST(
       }
 
       // Add member
-    });
+      const [insertResult] = await db.insert(projectMembers).values({
+        projectId: id,
+        userId: newUserId,
+        role: role || 'member',
+        createdAt: new Date().toISOString(),
+      });
 
-  const [newMember] = await db.select().from(projectMembers).where(eq(projectMembers.id, result.insertId));
+      const [newMember] = await db.select().from(projectMembers).where(eq(projectMembers.id, insertResult.insertId));
 
-  return NextResponse.json(newMember, { status: 201 });
-} catch (error) {
-  console.error('Error adding member:', error);
-  return NextResponse.json({ message: 'Failed to add member' }, { status: 500 });
-}
+      return NextResponse.json(newMember, { status: 201 });
+    } catch (error) {
+      console.error('Error adding member:', error);
+      return NextResponse.json({ message: 'Failed to add member' }, { status: 500 });
+    }
   });
 }
 

@@ -199,9 +199,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const result = newProject;
-
-      return NextResponse.json(result, { status: 201 });
+      return NextResponse.json(newProject, { status: 201 });
     } catch (error) {
       console.error('Error creating project:', error);
       return NextResponse.json(

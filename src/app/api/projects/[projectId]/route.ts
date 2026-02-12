@@ -175,9 +175,9 @@ export async function PUT(
         })
         .where(eq(projects.id, id));
 
-      const [updated] = await db.select().from(projects).where(eq(projects.id, id));
+      const [updatedProject] = await db.select().from(projects).where(eq(projects.id, id));
 
-      return NextResponse.json(updated);
+      return NextResponse.json(updatedProject);
     } catch (error) {
       console.error('Error updating project:', error);
       return NextResponse.json({ message: 'Failed to update project' }, { status: 500 });

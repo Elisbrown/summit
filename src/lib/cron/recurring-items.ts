@@ -26,7 +26,7 @@ export const calculateNextDueDate = (
 export const processRecurringInvoices = async () => {
   const today = new Date();
   const formattedToday = format(today, 'yyyy-MM-dd');
-  
+
   try {
     // Find all recurring invoices that are due today or earlier
     const dueInvoices = await db
@@ -48,7 +48,7 @@ export const processRecurringInvoices = async () => {
           )
         )
       );
-    
+
     // Group invoice items by invoice ID
     const invoiceMap = new Map();
     dueInvoices.forEach(result => {
@@ -59,25 +59,26 @@ export const processRecurringInvoices = async () => {
           items: [],
         });
       }
-      
+
       if (items) {
         invoiceMap.get(invoice.id).items.push(items);
       }
     });
-    
+
     const invoicesToProcess = Array.from(invoiceMap.values());
-    
+
     let processed = 0;
-    
+
     // Process each due invoice
     for (const { invoice, items } of invoicesToProcess) {
       try {
         await db.transaction(async (tx) => {
           // Generate a new invoice number
           const invoiceNumber = `INV-${Date.now().toString().slice(-8)}-${processed + 1}`;
-          
+
           // Create a new invoice instance
-          const [newInvoice] = await tx
+          // Create a new invoice instance
+          const [result] = await tx
             .insert(invoices)
             .values({
               companyId: invoice.companyId,
@@ -95,15 +96,14 @@ export const processRecurringInvoices = async () => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               softDelete: false,
-            })
-            .returning();
-          
+            });
+
           // Create invoice items for the new invoice
           for (const item of items) {
             await tx
               .insert(invoiceItems)
               .values({
-                invoiceId: newInvoice.id,
+                invoiceId: result.insertId,
                 description: item.description,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
@@ -112,13 +112,13 @@ export const processRecurringInvoices = async () => {
                 updatedAt: new Date().toISOString(),
               });
           }
-          
+
           // Calculate next due date for the recurring invoice
           const nextDueDate = calculateNextDueDate(
             parseISO(invoice.nextDueDate!),
             invoice.recurring as 'daily' | 'weekly' | 'monthly' | 'yearly'
           );
-          
+
           // Update the original recurring invoice with the new next due date
           await tx
             .update(invoices)
@@ -127,14 +127,14 @@ export const processRecurringInvoices = async () => {
               updatedAt: new Date().toISOString(),
             })
             .where(eq(invoices.id, invoice.id));
-          
+
           processed++;
         });
       } catch (error) {
         console.error(`Error processing recurring invoice ID ${invoice.id}:`, error);
       }
     }
-    
+
     return { processed };
   } catch (error) {
     console.error('Error processing recurring invoices:', error);
@@ -146,7 +146,7 @@ export const processRecurringInvoices = async () => {
 export const processRecurringExpenses = async () => {
   const today = new Date();
   const formattedToday = format(today, 'yyyy-MM-dd');
-  
+
   try {
     // Find all recurring expenses that are due today or earlier
     const dueExpenses = await db
@@ -164,16 +164,17 @@ export const processRecurringExpenses = async () => {
           )
         )
       );
-    
-    
+
+
     let processed = 0;
-    
+
     // Process each due expense
     for (const expense of dueExpenses) {
       try {
         await db.transaction(async (tx) => {
           // Create a new expense instance
-          const [newExpense] = await tx.insert(expenses).values({
+          // Create a new expense instance
+          await tx.insert(expenses).values({
             companyId: expense.companyId,
             categoryId: expense.categoryId,
             vendor: expense.vendor,
@@ -186,14 +187,14 @@ export const processRecurringExpenses = async () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             softDelete: false,
-          }).returning();
-          
+          });
+
           // Calculate next due date for the recurring expense
           const nextDueDate = calculateNextDueDate(
             parseISO(expense.nextDueDate!),
             expense.recurring as 'daily' | 'weekly' | 'monthly' | 'yearly'
           );
-          
+
           // Update the original recurring expense with the new next due date
           await tx.update(expenses)
             .set({
@@ -201,14 +202,14 @@ export const processRecurringExpenses = async () => {
               updatedAt: new Date().toISOString(),
             })
             .where(eq(expenses.id, expense.id));
-          
+
           processed++;
         });
       } catch (error) {
         console.error(`Error processing recurring expense ID ${expense.id}:`, error);
       }
     }
-    
+
     return { processed };
   } catch (error) {
     console.error('Error processing recurring expenses:', error);
@@ -220,7 +221,7 @@ export const processRecurringExpenses = async () => {
 export const processRecurringIncome = async () => {
   const today = new Date();
   const formattedToday = format(today, 'yyyy-MM-dd');
-  
+
   try {
     // Find all recurring income that is due today or earlier
     const dueIncome = await db
@@ -238,16 +239,17 @@ export const processRecurringIncome = async () => {
           )
         )
       );
-    
-    
+
+
     let processed = 0;
-    
+
     // Process each due income
     for (const incomeItem of dueIncome) {
       try {
         await db.transaction(async (tx) => {
           // Create a new income instance
-          const [newIncome] = await tx.insert(income).values({
+          // Create a new income instance
+          await tx.insert(income).values({
             companyId: incomeItem.companyId,
             categoryId: incomeItem.categoryId,
             clientId: incomeItem.clientId,
@@ -261,14 +263,14 @@ export const processRecurringIncome = async () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             softDelete: false,
-          }).returning();
-          
+          });
+
           // Calculate next due date for the recurring income
           const nextDueDate = calculateNextDueDate(
             parseISO(incomeItem.nextDueDate!),
             incomeItem.recurring as 'daily' | 'weekly' | 'monthly' | 'yearly'
           );
-          
+
           // Update the original recurring income with the new next due date
           await tx.update(income)
             .set({
@@ -276,14 +278,14 @@ export const processRecurringIncome = async () => {
               updatedAt: new Date().toISOString(),
             })
             .where(eq(income.id, incomeItem.id));
-          
+
           processed++;
         });
       } catch (error) {
         console.error(`Error processing recurring income ID ${incomeItem.id}:`, error);
       }
     }
-    
+
     return { processed };
   } catch (error) {
     console.error('Error processing recurring income:', error);
@@ -299,7 +301,7 @@ export const processAllRecurringItems = async () => {
       processRecurringExpenses(),
       processRecurringIncome(),
     ]);
-    
+
     return {
       invoices: invoiceResult.processed,
       expenses: expenseResult.processed,

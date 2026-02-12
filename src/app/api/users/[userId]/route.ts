@@ -79,12 +79,12 @@ export async function PUT(
       // For now, assuming only admins can update users or user updating themselves (but usually sensitive fields restricted)
       // Since this is a simple update, we'll allow it if authInfo.role is admin or match ID.
       // But Schema handles role changes. Only admin should change roles.
-      
+
       const isSelf = id === authInfo.userId;
       const isAdmin = authInfo.role === 'admin';
 
       if (!isSelf && !isAdmin) {
-         return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
       }
 
       // Update validation
@@ -104,7 +104,7 @@ export async function PUT(
       }
 
       // Update user
-      const [updatedUser] = await db
+      await db
         .update(users)
         .set({
           name,
@@ -117,15 +117,18 @@ export async function PUT(
             eq(users.companyId, companyId),
             eq(users.softDelete, false)
           )
-        )
-        .returning({
+        );
+
+      const [updatedUser] = await db
+        .select({
           id: users.id,
           name: users.name,
           email: users.email,
           role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, id));
 
-        });
-      
       if (!updatedUser) {
         return NextResponse.json({ message: 'User not found' }, { status: 404 });
       }
@@ -156,7 +159,7 @@ export async function DELETE(
           { status: 400 }
         );
       }
-      
+
       // Prevent users from deleting themselves
       if (authInfo.userId === id) {
         return NextResponse.json(
@@ -167,12 +170,12 @@ export async function DELETE(
 
       // Only admins can delete users
       if (authInfo.role !== 'admin') {
-         // Or check specific permission
-         return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+        // Or check specific permission
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
       }
-      
+
       // Soft delete
-      const result = await db
+      await db
         .update(users)
         .set({
           softDelete: true,
@@ -184,18 +187,19 @@ export async function DELETE(
             eq(users.companyId, companyId),
             eq(users.softDelete, false)
           )
-        )
-        .returning({ id: users.id });
-      
+        );
+
+      const result = await db.select({ id: users.id }).from(users).where(eq(users.id, id));
+
       if (!result.length) {
         return NextResponse.json(
           { message: 'User not found or already deleted' },
           { status: 404 }
         );
       }
-      
-      return NextResponse.json({ 
-        message: 'User deleted successfully' 
+
+      return NextResponse.json({
+        message: 'User deleted successfully'
       });
     } catch (error) {
       console.error('Error deleting user:', error);

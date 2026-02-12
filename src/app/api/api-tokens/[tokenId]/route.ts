@@ -20,7 +20,7 @@ export async function DELETE(
     try {
       const { userId, companyId } = authInfo;
       const { tokenId } = await params;
-      
+
       const paramsValidation = paramsSchema.safeParse({ tokenId });
 
       if (!paramsValidation.success) {
@@ -29,25 +29,31 @@ export async function DELETE(
           { status: 400 }
         );
       }
-      
+
       const id = parseInt(paramsValidation.data.tokenId);
 
-      const [revokedToken] = await db
-        .update(apiTokens)
-        .set({ revokedAt: new Date().toISOString() })
+      // Check if the token exists and is valid
+      const [existingToken] = await db
+        .select()
+        .from(apiTokens)
         .where(
           and(
             eq(apiTokens.id, id),
-            eq(apiTokens.userId, userId), // Ensure token belongs to the user
+            eq(apiTokens.userId, userId),
             eq(apiTokens.companyId, companyId),
             isNull(apiTokens.revokedAt)
           )
-        )
-        .returning({ id: apiTokens.id });
+        );
 
-      if (!revokedToken) {
+      if (!existingToken) {
         return NextResponse.json({ message: 'API token not found or already revoked' }, { status: 404 });
       }
+
+      // Revoke the token
+      await db
+        .update(apiTokens)
+        .set({ revokedAt: new Date().toISOString() })
+        .where(eq(apiTokens.id, id));
 
       return NextResponse.json({ message: 'API token revoked successfully' });
     } catch (error) {

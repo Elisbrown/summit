@@ -55,7 +55,7 @@ export async function PATCH(
     }
 
     // Update the quote status
-    const [updatedQuote] = await db
+    await db
       .update(quotes)
       .set(updates)
       .where(
@@ -63,13 +63,14 @@ export async function PATCH(
           eq(quotes.id, parseInt(quoteId)),
           eq(quotes.companyId, companyId)
         )
-      )
-      .returning();
+      );
+
+    const [updatedQuote] = await db.select().from(quotes).where(eq(quotes.id, parseInt(quoteId)));
 
     return NextResponse.json(updatedQuote);
   } catch (error: any) {
     console.error('Error updating quote status:', error);
-    
+
     if (error.name === 'ZodError') {
       return NextResponse.json(
         { message: 'Invalid status value' },

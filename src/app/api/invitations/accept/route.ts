@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Parse and validate request body
     const body = await request.json();
     const { token, name, password } = acceptSchema.parse(body);
-    
+
     // Find the invitation by token
     const [invitation] = await db
       .select({
@@ -45,14 +45,14 @@ export async function POST(request: NextRequest) {
           eq(companyInvitations.status, 'pending')
         )
       );
-    
+
     if (!invitation) {
       return NextResponse.json(
         { message: 'Invalid or expired invitation token' },
         { status: 404 }
       );
     }
-    
+
     // Check if invitation has expired
     if (new Date() > new Date(invitation.expires)) {
       // Mark invitation as expired
@@ -63,37 +63,37 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(companyInvitations.id, invitation.id));
-      
+
       return NextResponse.json(
         { message: 'Invitation has expired' },
         { status: 400 }
       );
     }
-    
+
     // Get company details
     const [company] = await db
-      .select({ 
+      .select({
         id: companies.id,
-        name: companies.name 
+        name: companies.name
       })
       .from(companies)
       .where(eq(companies.id, invitation.companyId));
-    
+
     // Check if user already exists
     const existingUser = await db
       .select({ id: users.id, softDelete: users.softDelete })
       .from(users)
       .where(eq(users.email, invitation.email));
-    
+
     // Hash the password
     const hashedPassword = await hash(password, 10);
-    
+
     let userId;
-    
+
     if (existingUser.length > 0) {
       // If the user exists but is soft deleted, reactivate it
       if (existingUser[0].softDelete) {
-        const [updatedUser] = await db
+        await db
           .update(users)
           .set({
             name,
@@ -103,9 +103,10 @@ export async function POST(request: NextRequest) {
             softDelete: false,
             updatedAt: new Date().toISOString(),
           })
-          .where(eq(users.id, existingUser[0].id))
-          .returning({ id: users.id });
-        
+          .where(eq(users.id, existingUser[0].id));
+
+        const [updatedUser] = await db.select({ id: users.id }).from(users).where(eq(users.id, existingUser[0].id));
+
         userId = updatedUser.id;
       } else {
         return NextResponse.json(
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Create a new user
-      const [newUser] = await db
+      const [insertResult] = await db
         .insert(users)
         .values({
           name,
@@ -125,12 +126,13 @@ export async function POST(request: NextRequest) {
           companyId: invitation.companyId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        })
-        .returning({ id: users.id });
-      
+        });
+
+      const [newUser] = await db.select({ id: users.id }).from(users).where(eq(users.id, insertResult.insertId));
+
       userId = newUser.id;
     }
-    
+
     // Update invitation status to accepted
     await db
       .update(companyInvitations)
@@ -140,13 +142,13 @@ export async function POST(request: NextRequest) {
         usedAt: new Date().toISOString(),
       })
       .where(eq(companyInvitations.id, invitation.id));
-    
+
     // Generate the permissions for the user's role (for the response)
     const permissions = getUserPermissions(invitation.role);
-    
+
     // Get the base URL for the app
     const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://summitfinance.app';
-    
+
     // Send welcome email
     const { error } = await getResend().emails.send({
       from: `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'kugie@summitfinance.app'}>`,
@@ -163,12 +165,12 @@ export async function POST(request: NextRequest) {
         </div>
       `,
     });
-    
+
     if (error) {
       console.error('Error sending welcome email:', error);
       // We still created the account, so we'll return success but log the email error
     }
-    
+
     return NextResponse.json({
       message: 'Account created successfully',
       user: {
@@ -181,14 +183,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error accepting invitation:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: 'Validation error', errors: error.errors },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { message: 'Failed to accept invitation' },
       { status: 500 }

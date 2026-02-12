@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
-    
+
     // Parse and validate the request body
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
@@ -46,21 +46,22 @@ export async function POST(request: Request) {
     const hashedPassword = await hash(validatedData.password, 10);
 
     // Create the company
-    const [newCompany] = await db
+    const [insertResult] = await db
       .insert(companies)
       .values({
         name: validatedData.companyName,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
-      .returning({ id: companies.id });
+      });
+
+    const [newCompany] = await db.select({ id: companies.id }).from(companies).where(eq(companies.id, insertResult.insertId));
 
     if (!newCompany) {
       throw new Error('Failed to create company');
     }
 
     // Create the user with admin role
-    const [newUser] = await db
+    const [userInsertResult] = await db
       .insert(users)
       .values({
         name: validatedData.name,
@@ -70,8 +71,9 @@ export async function POST(request: Request) {
         companyId: newCompany.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
-      .returning({ id: users.id });
+      });
+
+    const [newUser] = await db.select({ id: users.id }).from(users).where(eq(users.id, userInsertResult.insertId));
 
     if (!newUser) {
       // If user creation fails, roll back by deleting the company
@@ -80,20 +82,20 @@ export async function POST(request: Request) {
     }
 
     // Success
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'User registered successfully',
       userId: newUser.id,
     }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: 'Validation error', errors: error.errors },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -68,15 +68,16 @@ export async function POST(request: NextRequest) {
 
     if (!clientUser) {
       // Create a new client user
-      const [newClientUser] = await db
+      const [insertResult] = await db
         .insert(clientUsers)
         .values({
           clientId: loginToken.clientId,
           email: loginToken.email,
           name: clientInfo.name,
           tokenVersion: 1,
-        })
-        .returning();
+        });
+
+      const [newClientUser] = await db.select().from(clientUsers).where(eq(clientUsers.id, insertResult.insertId));
 
       clientUser = newClientUser;
     }

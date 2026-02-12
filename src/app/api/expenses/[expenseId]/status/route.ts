@@ -30,27 +30,27 @@ export async function PUT(
     try {
       const { companyId } = authInfo;
       const { expenseId } = await params;
-      
+
       if (isNaN(parseInt(expenseId))) {
         return NextResponse.json(
           { error: "Invalid expense ID" },
           { status: 400 }
         );
       }
-      
+
       // Validate request body
       const body = await req.json();
       const validatedData = updateStatusSchema.safeParse(body);
-      
+
       if (!validatedData.success) {
         return NextResponse.json(
           { error: "Invalid status value. Status must be 'pending', 'approved', or 'rejected'." },
           { status: 400 }
         );
       }
-      
+
       const { status } = validatedData.data;
-      
+
       // Check if the expense exists and belongs to the company
       const existingExpense = await db
         .select()
@@ -63,16 +63,16 @@ export async function PUT(
           )
         )
         .limit(1);
-      
+
       if (existingExpense.length === 0) {
         return NextResponse.json(
           { error: "Expense not found" },
           { status: 404 }
         );
       }
-      
+
       // Update the expense status
-      const [updatedExpense] = await db
+      await db
         .update(expenses)
         .set({
           status,
@@ -83,9 +83,10 @@ export async function PUT(
             eq(expenses.id, parseInt(expenseId)),
             eq(expenses.companyId, companyId)
           )
-        )
-        .returning();
-      
+        );
+
+      const [updatedExpense] = await db.select().from(expenses).where(eq(expenses.id, parseInt(expenseId)));
+
       return NextResponse.json({
         message: `Expense has been ${status}`,
         expense: updatedExpense,
