@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { quotes, quoteItems, clients, companies, users } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { Resend } from 'resend';
+import { getBaseUrl } from '@/lib/url-utils';
 
 // Initialize Resend lazily
 let resendClient: Resend | null = null;
@@ -80,7 +81,7 @@ export async function POST(
     }
 
     // Build URLs for the email
-    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://summitfinance.app';
+    const baseUrl = getBaseUrl(request);
     const viewUrl = `${baseUrl}/quotes/${quoteId}`;
     const downloadUrl = `${baseUrl}/api/quotes/${quoteId}/pdf`;
 

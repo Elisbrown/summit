@@ -6,6 +6,7 @@ import { clients } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { MagicLinkEmail } from '@/emails/MagicLinkEmail';
+import { getBaseUrl } from '@/lib/url-utils';
 
 let resendClient: Resend | null = null;
 function getResend(): Resend {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const token = await saveLoginToken(clientData.id, email);
 
     // Create verification URL
-    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://summitfinance.app';
+    const baseUrl = getBaseUrl(request);
     const verificationUrl = `${baseUrl}/portal/verify?token=${token}`;
 
     // Send email
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (error?.message) console.error('Error message:', error.message);
     // @ts-ignore
     if (error?.response) console.error('Error response:', JSON.stringify(error.response));
-    
+
     return NextResponse.json(
       { error: 'An error occurred while generating your magic link' },
       { status: 500 }

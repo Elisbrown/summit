@@ -4,6 +4,7 @@ import { invoices, invoiceItems, clients, companies, users } from '@/lib/db/sche
 import { and, eq } from 'drizzle-orm';
 import { Resend } from 'resend';
 import { withAuth } from '@/lib/auth/getAuthInfo';
+import { getBaseUrl } from '@/lib/url-utils';
 
 // Initialize Resend lazily
 let resendClient: Resend | null = null;
@@ -72,7 +73,7 @@ export async function POST(
       }
 
       // Build URLs for the email
-      const baseUrl = process.env.NEXT_PUBLIC_URL;
+      const baseUrl = getBaseUrl(request);
       const viewUrl = `${baseUrl}/portal/invoices/${invoiceId}`;
 
       // Create a simple HTML email template

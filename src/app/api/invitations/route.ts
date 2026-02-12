@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Resend } from 'resend';
 import { Role } from '@/lib/auth/permissions/roles';
 import { InvitationEmail } from '@/emails/InvitationEmail';
+import { getBaseUrl } from '@/lib/url-utils';
 
 let resendClient: Resend | null = null;
 function getResend(): Resend {
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       .where(eq(companies.id, companyId));
 
     // Send invitation email
-    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://app.sigalix.net';
+    const baseUrl = getBaseUrl(request);
     const acceptUrl = `${baseUrl}/accept-invitation?token=${token}`;
 
     const fromEmail = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'noreply@sigalix.net'}>`
