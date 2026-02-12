@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { projectFiles, projects, projectMembers } from '@/lib/db/schema';
+import { projectFiles, projects, projectMembers, users } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/auth/getAuthInfo';
 import { writeFile, mkdir } from 'fs/promises';
@@ -50,18 +50,27 @@ export async function GET(
         }
       }
 
-      const files = await db.query.projectFiles.findMany({
-        where: eq(projectFiles.projectId, id),
-        orderBy: [desc(projectFiles.createdAt)],
-        with: {
+      const files = await db
+        .select({
+          id: projectFiles.id,
+          projectId: projectFiles.projectId,
+          messageId: projectFiles.messageId,
+          uploadedById: projectFiles.uploadedById,
+          uploadedByClientId: projectFiles.uploadedByClientId,
+          name: projectFiles.name,
+          url: projectFiles.url,
+          mimeType: projectFiles.mimeType,
+          size: projectFiles.size,
+          createdAt: projectFiles.createdAt,
           uploadedBy: {
-            columns: {
-              id: true,
-              name: true,
-            }
-          }
-        }
-      });
+            id: users.id,
+            name: users.name,
+          },
+        })
+        .from(projectFiles)
+        .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+        .where(eq(projectFiles.projectId, id))
+        .orderBy(desc(projectFiles.createdAt));
 
       return NextResponse.json(files);
 
