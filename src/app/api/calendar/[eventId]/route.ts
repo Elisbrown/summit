@@ -15,20 +15,20 @@ export async function GET(
       const { eventId } = await params;
       const { companyId } = authInfo;
       const id = parseInt(eventId);
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid event ID' }, { status: 400 });
       }
-      
+
       const [event] = await db
         .select()
         .from(calendarEvents)
         .where(and(eq(calendarEvents.id, id), eq(calendarEvents.companyId, companyId), eq(calendarEvents.softDelete, false)));
-      
+
       if (!event) {
         return NextResponse.json({ message: 'Event not found' }, { status: 404 });
       }
-      
+
       return NextResponse.json(event);
     } catch (error) {
       console.error('Error fetching event:', error);
@@ -48,31 +48,31 @@ export async function PUT(
       const { companyId, userId } = authInfo;
       const id = parseInt(eventId);
       const body = await request.json();
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid event ID' }, { status: 400 });
       }
-      
+
       // Get event
       const [event] = await db
         .select()
         .from(calendarEvents)
         .where(and(eq(calendarEvents.id, id), eq(calendarEvents.companyId, companyId), eq(calendarEvents.softDelete, false)));
-      
+
       if (!event) {
         return NextResponse.json({ message: 'Event not found' }, { status: 404 });
       }
-      
+
       // Validate
       const validation = calendarEventSchema.partial().safeParse(body);
       if (!validation.success) {
         return NextResponse.json({ message: 'Validation failed', errors: validation.error.format() }, { status: 400 });
       }
-      
+
       const { title, description, type, allDay, startAt, endAt, projectId } = validation.data;
-      
+
       // Update
-      const [updated] = await db
+      await db
         .update(calendarEvents)
         .set({
           ...(title !== undefined && { title }),
@@ -84,9 +84,10 @@ export async function PUT(
           ...(projectId !== undefined && { projectId }),
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(calendarEvents.id, id))
-        .returning();
-      
+        .where(eq(calendarEvents.id, id));
+
+      const [updated] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, id));
+
       return NextResponse.json(updated);
     } catch (error) {
       console.error('Error updating event:', error);
@@ -105,27 +106,27 @@ export async function DELETE(
       const { eventId } = await params;
       const { companyId } = authInfo;
       const id = parseInt(eventId);
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid event ID' }, { status: 400 });
       }
-      
+
       // Get event
       const [event] = await db
         .select()
         .from(calendarEvents)
         .where(and(eq(calendarEvents.id, id), eq(calendarEvents.companyId, companyId), eq(calendarEvents.softDelete, false)));
-      
+
       if (!event) {
         return NextResponse.json({ message: 'Event not found' }, { status: 404 });
       }
-      
+
       // Soft delete
       await db
         .update(calendarEvents)
         .set({ softDelete: true, updatedAt: new Date().toISOString() })
         .where(eq(calendarEvents.id, id));
-      
+
       return NextResponse.json({ message: 'Event deleted' });
     } catch (error) {
       console.error('Error deleting event:', error);

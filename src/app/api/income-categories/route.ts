@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   return withAuth<IncomeCategoryResponse | ErrorResponse>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Fetch categories belonging to the user's company
       const categories = await db
         .select()
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
           )
         )
         .orderBy(incomeCategories.name);
-      
+
       return NextResponse.json({
         data: categories,
         total: categories.length,
@@ -77,19 +77,19 @@ export async function POST(req: NextRequest) {
     try {
       const { companyId } = authInfo;
       const body = await req.json();
-      
+
       // Validate request body
       const validatedData = createCategorySchema.safeParse(body);
-      
+
       if (!validatedData.success) {
         return NextResponse.json(
           { error: validatedData.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { name } = validatedData.data;
-      
+
       // Check if category with the same name already exists for this company
       const existingCategory = await db
         .select({ count: count() })
@@ -101,17 +101,17 @@ export async function POST(req: NextRequest) {
             eq(incomeCategories.softDelete, false)
           )
         );
-      
+
       if (existingCategory[0].count > 0) {
         return NextResponse.json(
           { error: "A category with this name already exists" },
           { status: 400 }
         );
       }
-      
+
       // Create the new category
       const now = new Date();
-      const [newCategory] = await db
+      const [insertResult] = await db
         .insert(incomeCategories)
         .values({
           companyId,
@@ -119,9 +119,10 @@ export async function POST(req: NextRequest) {
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newCategory] = await db.select().from(incomeCategories).where(eq(incomeCategories.id, insertResult.insertId));
+
       return NextResponse.json(newCategory, { status: 201 });
     } catch (error) {
       console.error("Error creating income category:", error);

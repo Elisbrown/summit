@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create payment method
-      const [newMethod] = await db
+      const [insertResult] = await db
         .insert(paymentMethods)
         .values({
           companyId,
@@ -89,8 +89,9 @@ export async function POST(request: NextRequest) {
           isEnabled: isEnabled ?? true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        })
-        .returning();
+        });
+
+      const [newMethod] = await db.select().from(paymentMethods).where(eq(paymentMethods.id, insertResult.insertId));
 
       return NextResponse.json(newMethod, { status: 201 });
     } catch (error) {

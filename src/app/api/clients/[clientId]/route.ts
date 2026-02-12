@@ -134,7 +134,7 @@ export async function PUT(
       }
 
       // Update client
-      const [updatedClient] = await db
+      await db
         .update(clients)
         .set({
           name: validatedData.name,
@@ -149,8 +149,9 @@ export async function PUT(
             eq(clients.id, id),
             eq(clients.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      const [updatedClient] = await db.select().from(clients).where(eq(clients.id, id));
 
       return NextResponse.json(updatedClient);
     } catch (error) {
@@ -201,7 +202,7 @@ export async function DELETE(
       }
 
       // Soft delete client
-      const [deletedClient] = await db
+      await db
         .update(clients)
         .set({
           softDelete: true,
@@ -212,8 +213,9 @@ export async function DELETE(
             eq(clients.id, id),
             eq(clients.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      const [deletedClient] = await db.select().from(clients).where(eq(clients.id, id));
 
       return NextResponse.json(deletedClient);
     } catch (error) {

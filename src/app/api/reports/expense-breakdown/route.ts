@@ -10,30 +10,30 @@ import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || !session.user.companyId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const companyId = parseInt(session.user.companyId);
-    
+
     // Parse query parameters for date range
     const searchParams = request.nextUrl.searchParams;
     const months = parseInt(searchParams.get('months') || '12'); // Default to last 12 months
-    
+
     // Calculate date range
     const endDate = new Date();
     const startDate = subMonths(startOfMonth(endDate), months - 1);
-    
+
     // Convert dates to yyyy-MM-dd format for SQL comparison
     const startDateStr = format(startDate, 'yyyy-MM-dd');
     const endDateStr = format(endDate, 'yyyy-MM-dd');
-    
+
     // Get expense totals by category using aggregation (efficient and includes uncategorized)
     const expensesByCategoryResult = await db
       .select({
         name: expenseCategories.name,
-        totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS NUMERIC)), 0)`.as('total_amount'),
+        totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS DECIMAL(65,2))), 0)`.as('total_amount'),
       })
       .from(expenses)
       .leftJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
         and(
           eq(expenses.companyId, companyId),
           eq(expenses.softDelete, false),
-          gte(sql`date(${expenses.expenseDate})`, startDateStr),
-          lte(sql`date(${expenses.expenseDate})`, endDateStr)
+          gte(sql`DATE(${expenses.expenseDate})`, startDateStr),
+          lte(sql`DATE(${expenses.expenseDate})`, endDateStr)
         )
       )
       .groupBy(expenses.categoryId, expenseCategories.name);
@@ -51,43 +51,43 @@ export async function GET(request: NextRequest) {
       category: item.name || 'Uncategorized',
       amount: parseFloat(item.totalAmount as string),
     }));
-    
+
     // Sort by amount descending
     expensesByCategory.sort((a, b) => b.amount - a.amount);
-    
-    // For expenses by month, use SQLite strftime function
+
+    // Get expenses by month using MySQL DATE_FORMAT function
     const expensesByMonthResult = await db
       .select({
-        month: sql`strftime('%Y-%m', ${expenses.expenseDate})`.as('month'),
-        totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS NUMERIC)), 0)`.as('total_amount'),
+        month: sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`.as('month'),
+        totalAmount: sql`COALESCE(SUM(CAST(${expenses.amount} AS DECIMAL(65,2))), 0)`.as('total_amount'),
       })
       .from(expenses)
       .where(
         and(
           eq(expenses.companyId, companyId),
           eq(expenses.softDelete, false),
-          gte(sql`date(${expenses.expenseDate})`, startDateStr),
-          lte(sql`date(${expenses.expenseDate})`, endDateStr)
+          gte(sql`DATE(${expenses.expenseDate})`, startDateStr),
+          lte(sql`DATE(${expenses.expenseDate})`, endDateStr)
         )
       )
-      .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
-      .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
-    
+      .groupBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`)
+      .orderBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`);
+
     // Format the data for the frontend
     const expensesByMonth = expensesByMonthResult.map(row => ({
-      month: new Date(row.month as string).toLocaleDateString('en-US', { 
-        month: 'short', 
-        year: 'numeric' 
+      month: new Date(row.month as string).toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric'
       }),
       amount: parseFloat(row.totalAmount as string),
     }));
-    
+
     return NextResponse.json({
       expensesByCategory,
       expensesByMonth,
       totalExpenses: expensesByCategory.reduce((sum, item) => sum + item.amount, 0),
     });
-    
+
   } catch (error) {
     console.error('Error generating expense breakdown report:', error);
     return NextResponse.json(

@@ -37,15 +37,15 @@ export async function GET(request: NextRequest) {
       const startDate = searchParams.get('startDate');
       const endDate = searchParams.get('endDate');
       const search = searchParams.get('search') || '';
-      
+
       const offset = (page - 1) * limit;
-      
+
       // Build the base conditions
       let conditions = and(
         eq(expenses.companyId, companyId),
         eq(expenses.softDelete, false)
       );
-      
+
       // Add status filter if provided
       if (status && status !== 'all') {
         if (['pending', 'approved', 'rejected'].includes(status)) {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      
+
       // Add category filter if provided
       if (category && category !== 'all') {
         const categoryId = parseInt(category);
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      
+
       // Add date range filters if provided
       if (startDate) {
         conditions = and(
@@ -74,14 +74,14 @@ export async function GET(request: NextRequest) {
           sql`${expenses.expenseDate} >= ${startDate}`
         );
       }
-      
+
       if (endDate) {
         conditions = and(
           conditions,
           sql`${expenses.expenseDate} <= ${endDate}`
         );
       }
-      
+
       // Add search filter
       if (search) {
         conditions = and(
@@ -92,16 +92,16 @@ export async function GET(request: NextRequest) {
           )
         );
       }
-      
+
       // Count total records for pagination
       const totalCountResult = await db
         .select({ count: count() })
         .from(expenses)
         .leftJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
         .where(conditions);
-      
+
       const totalCount = Number(totalCountResult[0]?.count || 0);
-      
+
       // Execute the query with sorting, limit and offset
       const expenseResults = await db
         .select({
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         )
         .limit(limit)
         .offset(offset);
-      
+
       if (expenseResults.length === 0) {
         return NextResponse.json({
           data: [],
@@ -131,13 +131,13 @@ export async function GET(request: NextRequest) {
           totalPages: 0,
         });
       }
-      
+
       // Format expense results
       const formattedExpenses = expenseResults.map(result => ({
         ...result.expense,
         category: result.category && result.category.id ? result.category : null,
       }));
-      
+
       return NextResponse.json({
         data: formattedExpenses,
         total: totalCount,
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         limit,
         totalPages: Math.ceil(totalCount / limit),
       });
-      
+
     } catch (error) {
       console.error('Error fetching expenses:', error);
       return NextResponse.json(
@@ -161,19 +161,19 @@ export async function POST(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       const body = await request.json();
-      
+
       // Validate and parse the request body
       const bodyValidation = expenseSchema.safeParse(body);
-      
+
       if (!bodyValidation.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: bodyValidation.error.format() },
           { status: 400 }
         );
       }
-      
+
       const {
         categoryId,
         vendorId,
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         recurring,
         nextDueDate,
       } = bodyValidation.data;
-      
+
       // Check if category exists and belongs to the company
       if (categoryId) {
         const existingCategory = await db
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
             )
           )
           .limit(1);
-        
+
         if (existingCategory.length === 0) {
           return NextResponse.json(
             { message: 'Category not found or does not belong to your company' },
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-      
+
       // Check if vendor exists and belongs to the company if vendorId is provided
       let existingVendor = null;
       if (vendorId) {
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
             )
           )
           .limit(1);
-        
+
         if (existingVendor.length === 0) {
           return NextResponse.json(
             { message: 'Vendor not found or does not belong to your company' },
@@ -232,9 +232,9 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-      
+
       // Insert the new expense
-      const [newExpense] = await db
+      const [result] = await db
         .insert(expenses)
         .values({
           companyId,
@@ -252,11 +252,12 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newExpense] = await db.select().from(expenses).where(eq(expenses.id, result.insertId));
+
       return NextResponse.json(newExpense, { status: 201 });
-      
+
     } catch (error) {
       console.error('Error creating expense:', error);
       return NextResponse.json(

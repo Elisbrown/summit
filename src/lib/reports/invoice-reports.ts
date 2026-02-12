@@ -17,7 +17,7 @@ export const getInvoiceSummary = async (
   );
 
   // Add date range conditions if provided
-  // Use date() function to extract date part from ISO strings for proper comparison
+  // Use DATE() function to extract date part from ISO strings for proper comparison
   if (startDate && endDate) {
     baseConditions = and(
       baseConditions,
@@ -93,22 +93,22 @@ export const getInvoiceSummary = async (
 
   // Calculate trends if requested and if dates are provided
   let trends = undefined;
-  
+
   if (previousPeriodComparison && startDate && endDate) {
     // Calculate the previous period (same duration as the selected period)
     const selectedStartDate = new Date(startDate);
     const selectedEndDate = new Date(endDate);
     const periodDuration = selectedEndDate.getTime() - selectedStartDate.getTime();
-    
+
     const previousPeriodEndDate = new Date(selectedStartDate);
     previousPeriodEndDate.setTime(previousPeriodEndDate.getTime() - 1); // 1 ms before the current period starts
-    
+
     const previousPeriodStartDate = new Date(previousPeriodEndDate);
     previousPeriodStartDate.setTime(previousPeriodStartDate.getTime() - periodDuration);
-    
+
     const formattedPrevStartDate = format(previousPeriodStartDate, 'yyyy-MM-dd');
     const formattedPrevEndDate = format(previousPeriodEndDate, 'yyyy-MM-dd');
-    
+
     // Get previous period paid invoices
     const [prevPaidResult] = await db
       .select({
@@ -125,7 +125,7 @@ export const getInvoiceSummary = async (
           eq(invoices.softDelete, false)
         )
       );
-    
+
     // Get previous period overdue invoices
     const [prevOverdueResult] = await db
       .select({
@@ -142,20 +142,20 @@ export const getInvoiceSummary = async (
           eq(invoices.softDelete, false)
         )
       );
-    
+
     // Calculate percentage changes
     const prevPaidTotal = Number(prevPaidResult?.total || 0);
     const currentPaidTotal = Number(paidResult?.total || 0);
-    const paidChange = prevPaidTotal === 0 
+    const paidChange = prevPaidTotal === 0
       ? (currentPaidTotal > 0 ? 100 : 0)
       : ((currentPaidTotal - prevPaidTotal) / prevPaidTotal) * 100;
-    
+
     const prevOverdueTotal = Number(prevOverdueResult?.total || 0);
     const currentOverdueTotal = Number(overdueResult?.total || 0);
     const overdueChange = prevOverdueTotal === 0
       ? (currentOverdueTotal > 0 ? 100 : 0)
       : ((currentOverdueTotal - prevOverdueTotal) / prevOverdueTotal) * 100;
-    
+
     trends = {
       paid: {
         value: Math.abs(Math.round(paidChange * 10) / 10), // Round to 1 decimal place
@@ -265,7 +265,7 @@ export const getAgingReceivables = async (
         gte(invoices.dueDate, thirtyDaysAgo)
       )
     );
-  
+
   // 31-60 days
   const [thirtyToSixty] = await db
     .select({
@@ -280,7 +280,7 @@ export const getAgingReceivables = async (
         lt(invoices.dueDate, thirtyDaysAgo)
       )
     );
-  
+
   // 61-90 days
   const [sixtyToNinety] = await db
     .select({
@@ -295,7 +295,7 @@ export const getAgingReceivables = async (
         lt(invoices.dueDate, sixtyDaysAgo)
       )
     );
-  
+
   // Over 90 days
   const [overNinety] = await db
     .select({

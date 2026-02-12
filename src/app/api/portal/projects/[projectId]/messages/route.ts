@@ -22,7 +22,7 @@ export async function GET(
 
     const { projectId } = await params;
     const id = parseInt(projectId);
-    
+
     // Verify Access
     const [access] = await db
       .select()
@@ -35,7 +35,7 @@ export async function GET(
     // For now, fetch flattened list with joins for user OR client.
     // We need to join properly. A message has userId OR clientId.
     // Drizzle doesn't support conditional joins easily. We'll join both and coalesce in code.
-    
+
     const messages = await db
       .select({
         id: projectMessages.id,
@@ -61,25 +61,25 @@ export async function GET(
 
     // Transform for UI
     const formatted = messages.map(msg => {
-        const replyMessage = msg.replyToId ? messageMap.get(msg.replyToId) : null;
-        return {
-            id: msg.id,
-            content: msg.content,
-            createdAt: msg.createdAt,
-            userId: msg.userId,
-            clientId: msg.clientId,
-            user: msg.userId 
-              ? { name: msg.userName, email: msg.userEmail || '' } 
-              : (msg.clientName ? { name: msg.clientName, email: msg.clientEmail || '' } : null),
-            replyToId: msg.replyToId,
-            replyTo: replyMessage ? {
-                id: replyMessage.id,
-                content: replyMessage.content,
-                user: replyMessage.userId 
-                  ? { name: replyMessage.userName, email: replyMessage.userEmail || '' } 
-                  : (replyMessage.clientName ? { name: replyMessage.clientName, email: replyMessage.clientEmail || '' } : null)
-            } : null
-        };
+      const replyMessage = msg.replyToId ? messageMap.get(msg.replyToId) : null;
+      return {
+        id: msg.id,
+        content: msg.content,
+        createdAt: msg.createdAt,
+        userId: msg.userId,
+        clientId: msg.clientId,
+        user: msg.userId
+          ? { name: msg.userName, email: msg.userEmail || '' }
+          : (msg.clientName ? { name: msg.clientName, email: msg.clientEmail || '' } : null),
+        replyToId: msg.replyToId,
+        replyTo: replyMessage ? {
+          id: replyMessage.id,
+          content: replyMessage.content,
+          user: replyMessage.userId
+            ? { name: replyMessage.userName, email: replyMessage.userEmail || '' }
+            : (replyMessage.clientName ? { name: replyMessage.clientName, email: replyMessage.clientEmail || '' } : null)
+        } : null
+      };
     });
 
     return NextResponse.json({ data: formatted });
@@ -120,14 +120,16 @@ export async function POST(
     const now = new Date();
     const timestamp = format(now, 'yyyy-MM-dd HH:mm:ss');
 
-    const [newMessage] = await db.insert(projectMessages).values({
+    const [insertResult] = await db.insert(projectMessages).values({
       projectId: id,
       clientId: session.clientId, // Set client ID
       content,
       replyToId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }).returning();
+    });
+
+    const [newMessage] = await db.select().from(projectMessages).where(eq(projectMessages.id, insertResult.insertId));
 
     // Fetch full details for response, including replyTo if exists
     const [msg] = await db
@@ -139,14 +141,14 @@ export async function POST(
         clientId: projectMessages.clientId,
         replyToId: projectMessages.replyToId,
         client: {
-             name: clients.name,
-             email: clients.email,
+          name: clients.name,
+          email: clients.email,
         }
       })
       .from(projectMessages)
       .innerJoin(clients, eq(projectMessages.clientId, clients.id))
       .where(eq(projectMessages.id, newMessage.id));
-    
+
     // If there's a replyTo, fetch that message info
     let replyTo = null;
     if (msg.replyToId) {
@@ -159,7 +161,7 @@ export async function POST(
         })
         .from(projectMessages)
         .where(eq(projectMessages.id, msg.replyToId));
-      
+
       if (parentMsg) {
         // Get user info for the reply
         let userName = 'Unknown';
@@ -177,11 +179,11 @@ export async function POST(
         };
       }
     }
-      
+
     const formatted = {
-        ...msg,
-        user: { name: msg.client.name, email: msg.client.email }, // Format as user
-        replyTo,
+      ...msg,
+      user: { name: msg.client.name, email: msg.client.email }, // Format as user
+      replyTo,
     };
 
     return NextResponse.json(formatted);

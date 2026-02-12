@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Parse and validate query parameters
       const searchParams = request.nextUrl.searchParams;
       const queryValidation = transactionQuerySchema.safeParse({
@@ -23,28 +23,28 @@ export async function GET(request: NextRequest) {
         reconciled: searchParams.get('reconciled') || undefined,
         search: searchParams.get('search') || undefined,
       });
-      
+
       if (!queryValidation.success) {
         return NextResponse.json(
           { message: 'Invalid query parameters', errors: queryValidation.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { page, limit, type, startDate, endDate, reconciled, search } = queryValidation.data;
       const offset = (page - 1) * limit;
-      
+
       // Build query conditions
       let conditions = and(
         eq(transactions.companyId, companyId),
         eq(transactions.softDelete, false)
       );
-      
+
       // Add type filter if provided and not 'all'
       if (type && type !== 'all') {
         conditions = and(conditions, eq(transactions.type, type));
       }
-      
+
       // Add date range filters if provided
       if (startDate && endDate) {
         conditions = and(
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           sql`${transactions.transactionDate} <= ${endDate}`
         );
       }
-      
+
       // Add reconciled filter if provided
       if (reconciled && reconciled !== 'all') {
         conditions = and(
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           eq(transactions.reconciled, reconciled === 'true')
         );
       }
-      
+
       // Add search filter if provided
       if (search) {
         conditions = and(
@@ -78,13 +78,13 @@ export async function GET(request: NextRequest) {
           like(transactions.description, `%${search}%`)
         );
       }
-      
+
       // Count total matching transactions
       const [{ value: total }] = await db
         .select({ value: count() })
         .from(transactions)
         .where(conditions);
-      
+
       // Get account ID if filter exists
       const accountId = searchParams.get('accountId');
       if (accountId && !isNaN(parseInt(accountId))) {
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
           eq(transactions.accountId, parseInt(accountId))
         );
       }
-      
+
       // Retrieve transactions with related accounts
       const transactionResults = await db
         .select({
@@ -106,12 +106,12 @@ export async function GET(request: NextRequest) {
         .orderBy(desc(transactions.transactionDate))
         .limit(limit)
         .offset(offset);
-      
+
       // Format the response
       const formattedTransactions = await Promise.all(
         transactionResults.map(async (result) => {
           const { transaction, account } = result;
-          
+
           // Fetch related entity details based on which relatedId is present
           let relatedEntity = null;
           if (transaction.relatedInvoiceId) {
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
               .select()
               .from(invoices)
               .where(eq(invoices.id, transaction.relatedInvoiceId));
-            
+
             if (invoice) {
               relatedEntity = {
                 type: 'invoice',
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
               .select()
               .from(expenses)
               .where(eq(expenses.id, transaction.relatedExpenseId));
-            
+
             if (expense) {
               relatedEntity = {
                 type: 'expense',
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
               .select()
               .from(income)
               .where(eq(income.id, transaction.relatedIncomeId));
-            
+
             if (incomeItem) {
               relatedEntity = {
                 type: 'income',
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
               };
             }
           }
-          
+
           return {
             ...transaction,
             account: account ? { id: account.id, name: account.name, type: account.type } : null,
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
           };
         })
       );
-      
+
       return NextResponse.json({
         data: formattedTransactions,
         meta: {
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / limit),
         },
       });
-      
+
     } catch (error) {
       console.error('Error fetching transactions:', error);
       return NextResponse.json(
@@ -185,18 +185,18 @@ export async function POST(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Parse and validate request body
       const body = await request.json();
       const validation = transactionSchema.safeParse(body);
-      
+
       if (!validation.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: validation.error.format() },
           { status: 400 }
         );
       }
-      
+
       const {
         accountId,
         type,
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
         relatedIncomeId,
         reconciled,
       } = validation.data;
-      
+
       // Verify account belongs to company
       const account = await db
         .select()
@@ -223,14 +223,14 @@ export async function POST(request: NextRequest) {
           )
         )
         .limit(1);
-      
+
       if (!account.length) {
         return NextResponse.json({ message: 'Account not found' }, { status: 404 });
       }
-      
+
       // Create transaction and update account (sequential for SQLite)
       // Create the transaction
-      const [newTransaction] = await db
+      const [transactionResult] = await db
         .insert(transactions)
         .values({
           companyId,
@@ -248,29 +248,31 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newTransaction] = await db.select().from(transactions).where(eq(transactions.id, transactionResult.insertId));
+
       // Update account balance based on transaction type
       const currentBalance = parseFloat(account[0].currentBalance);
       let newBalance = currentBalance;
-      
+
       if (type === 'credit') {
         newBalance += amount;
       } else if (type === 'debit') {
         newBalance -= amount;
       }
-      
+
       // Update the account balance
-      const [updatedAccount] = await db
+      await db
         .update(accounts)
         .set({
           currentBalance: newBalance.toString(),
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(accounts.id, accountId))
-        .returning();
-      
+        .where(eq(accounts.id, accountId));
+
+      const [updatedAccount] = await db.select().from(accounts).where(eq(accounts.id, accountId));
+
       return NextResponse.json({
         ...newTransaction,
         account: {
@@ -280,7 +282,7 @@ export async function POST(request: NextRequest) {
           currentBalance: updatedAccount.currentBalance,
         },
       }, { status: 201 });
-      
+
     } catch (error) {
       console.error('Error creating transaction:', error);
       return NextResponse.json(

@@ -90,7 +90,7 @@ export async function PUT(
     const { title, description, priority, startDate, dueDate, completedAt, assigneeIds } = body;
 
     // Update card (sequential operations for SQLite)
-    const [updated] = await db
+    await db
       .update(cards)
       .set({
         ...(title !== undefined && { title }),
@@ -101,22 +101,24 @@ export async function PUT(
         ...(completedAt !== undefined && { completedAt: completedAt ? new Date(completedAt).toISOString() : null }),
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(cards.id, cId))
-      .returning();
+      .where(eq(cards.id, cId));
+
+    const [updated] = await db.select().from(cards).where(eq(cards.id, cId));
 
     // Update assignees if provided
     if (assigneeIds !== undefined && Array.isArray(assigneeIds)) {
       // Remove existing
       await db.delete(cardAssignees).where(eq(cardAssignees.cardId, cId));
-      
+
       // Add new
       if (assigneeIds.length > 0) {
-        for (const aId of assigneeIds) {
-           await db.insert(cardAssignees).values({
-             cardId: cId,
-             userId: aId,
-             createdAt: new Date().toISOString(),
-           }).onConflictDoNothing();
+        const uniqueAssigneeIds = [...new Set(assigneeIds)];
+        for (const aId of uniqueAssigneeIds) {
+          await db.insert(cardAssignees).values({
+            cardId: cId,
+            userId: aId,
+            createdAt: new Date().toISOString(),
+          });
         }
       }
     }

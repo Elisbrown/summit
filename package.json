@@ -34,7 +34,7 @@
     "@react-email/components": "^0.0.36",
     "@react-pdf/renderer": "^4.3.0",
     "@types/crypto-js": "^4.2.2",
-    "better-sqlite3": "^12.6.2",
+    "mysql2": "^3.12.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
@@ -68,7 +68,6 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/bcrypt": "^5.0.2",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^29.5.14",
     "@types/node": "^20",
     "@types/react": "19.2.7",
@@ -88,6 +87,9 @@
   "overrides": {
     "prettier": "3.5.3",
     "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "react": "$react",
+    "react-dom": "$react-dom",
+    "next": "$next"
   }
 }

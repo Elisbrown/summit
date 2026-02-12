@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Get query parameters
       const { searchParams } = new URL(request.url);
       const page = parseInt(searchParams.get('page') || '1');
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         .select({ count: sql`COUNT(*)` })
         .from(clients)
         .where(and(eq(clients.companyId, companyId), eq(clients.softDelete, false)));
-      
+
       const total = Number(countResult[0].count);
 
       // Get clients with pagination
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create client
-      const [newClient] = await db
+      const [result] = await db
         .insert(clients)
         .values({
           companyId,
@@ -123,20 +123,21 @@ export async function POST(request: NextRequest) {
           paymentTerms: validatedData.paymentTerms,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        })
-        .returning();
+        });
+
+      const [newClient] = await db.select().from(clients).where(eq(clients.id, result.insertId));
 
       return NextResponse.json(newClient, { status: 201 });
     } catch (error) {
       console.error('Error creating client:', error);
-      
+
       if (error instanceof ZodError) {
         return NextResponse.json(
           { message: 'Validation error', errors: error.errors },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
         { message: 'Internal server error' },
         { status: 500 }

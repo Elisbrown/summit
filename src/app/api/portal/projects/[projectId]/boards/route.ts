@@ -90,10 +90,10 @@ export async function POST(
       .select()
       .from(boards)
       .where(eq(boards.projectId, id));
-    
+
     const maxPos = existingBoards.reduce((m, b) => Math.max(m, b.position), -1);
 
-    const [newBoard] = await db
+    const [insertResult] = await db
       .insert(boards)
       .values({
         projectId: id,
@@ -101,8 +101,9 @@ export async function POST(
         position: maxPos + 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
-      .returning();
+      });
+
+    const [newBoard] = await db.select().from(boards).where(eq(boards.id, insertResult.insertId));
 
     return NextResponse.json(newBoard, { status: 201 });
   } catch (error) {

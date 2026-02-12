@@ -53,15 +53,15 @@ export async function GET(request: NextRequest) {
       const sortOrder = searchParams.get('sortOrder') || 'desc';
       const status = searchParams.get('status');
       const search = searchParams.get('search') || '';
-      
+
       const offset = (page - 1) * limit;
-      
+
       // Build the base conditions
       let conditions = and(
         eq(invoices.companyId, companyId),
         eq(invoices.softDelete, false)
       );
-      
+
       // Add status filter if provided
       if (status && status !== 'all') {
         if (['draft', 'sent', 'paid', 'overdue', 'cancelled'].includes(status)) {
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      
+
       // Add search filter
       if (search) {
         conditions = and(
@@ -82,16 +82,16 @@ export async function GET(request: NextRequest) {
           )
         );
       }
-      
+
       // Count total records for pagination
       const totalCountResult = await db
         .select({ count: count() })
         .from(invoices)
         .leftJoin(clients, eq(invoices.clientId, clients.id))
         .where(conditions);
-      
+
       const totalCount = Number(totalCountResult[0]?.count || 0);
-      
+
       // Execute the query with sorting, limit and offset
       const invoiceResults = await db
         .select({
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
         )
         .limit(limit)
         .offset(offset);
-      
+
       if (invoiceResults.length === 0) {
         return NextResponse.json({
           data: [],
@@ -122,37 +122,37 @@ export async function GET(request: NextRequest) {
           totalPages: 0,
         });
       }
-      
+
       // Get all invoice IDs
       const invoiceIds = invoiceResults.map(result => result.invoice.id);
-      
+
       // Get items for all invoices
       const items = await db
         .select()
         .from(invoiceItems)
         .where(inArray(invoiceItems.invoiceId, invoiceIds));
-      
+
       // Group items by invoice ID
       const itemsByInvoiceId: Record<number, any[]> = {};
-      
+
       for (const item of items) {
         if (!itemsByInvoiceId[item.invoiceId]) {
           itemsByInvoiceId[item.invoiceId] = [];
         }
         itemsByInvoiceId[item.invoiceId].push(item);
       }
-      
+
       // Format invoice results
       const formattedInvoices = invoiceResults.map(result => {
         const { invoice, client } = result;
-        
+
         return {
           ...invoice,
           client,
           items: itemsByInvoiceId[invoice.id] || [],
         };
       });
-      
+
       return NextResponse.json({
         data: formattedInvoices,
         total: totalCount,
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
         limit,
         totalPages: Math.ceil(totalCount / limit),
       });
-      
+
     } catch (error) {
       console.error('Error fetching invoices:', error);
       return NextResponse.json(
@@ -176,21 +176,21 @@ export async function POST(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       const body = await request.json();
-      
+
       // Validate input data
       const validationResult = invoiceSchema.safeParse(body);
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: validationResult.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { clientId, invoiceNumber, status, issueDate, dueDate, tax: taxInput, notes, items } = validationResult.data;
-      
+
       // Check if client exists and belongs to the company
       const existingClient = await db
         .select()
@@ -203,14 +203,14 @@ export async function POST(request: NextRequest) {
           )
         )
         .limit(1);
-      
+
       if (existingClient.length === 0) {
         return NextResponse.json(
           { message: 'Client not found or does not belong to your company' },
           { status: 404 }
         );
       }
-      
+
       // Check if invoice number already exists for this company
       const existingInvoice = await db
         .select()
@@ -223,14 +223,14 @@ export async function POST(request: NextRequest) {
           )
         )
         .limit(1);
-      
+
       if (existingInvoice.length > 0) {
         return NextResponse.json(
           { message: 'Invoice number already exists' },
           { status: 400 }
         );
       }
-      
+
       // Always calculate subtotal, tax and total from items regardless of what client sent
       const subtotal = items.reduce((sum, item) => {
         const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
@@ -240,13 +240,13 @@ export async function POST(request: NextRequest) {
       const taxRate = typeof taxInput === 'string' ? parseFloat(taxInput) : (taxInput || 0);
       const tax = taxRate ? subtotal * (taxRate / 100) : 0;
       const total = subtotal + tax;
-      
+
       // Insert invoice using a simple query approach to avoid schema issues
       const now = new Date();
       const nowISO = now.toISOString();
       const issueDateObj = new Date(issueDate);
       const dueDateObj = new Date(dueDate);
-      
+
       // Create raw SQL statement to insert invoice
       const newInvoice: typeof invoices.$inferInsert = {
         companyId: companyId,
@@ -265,11 +265,13 @@ export async function POST(request: NextRequest) {
         softDelete: false,
       };
 
-      const insertResult = await db.insert(invoices).values(newInvoice).returning();
-      
+      const [invoiceInsertResult] = await db.insert(invoices).values(newInvoice);
+      const [createdInvoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceInsertResult.insertId));
+      const insertResult = [createdInvoice]; // Maintain array structure for compatibility
+
       // Create invoice items
       const createdItems = [];
-      
+
       for (const item of items) {
         // Calculate amount server-side regardless of what client sent
         const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
@@ -286,14 +288,15 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        
-        const itemResult = await db.insert(invoiceItems).values(newItem).returning();
-        createdItems.push(itemResult[0]);
+
+        const [itemInsertResult] = await db.insert(invoiceItems).values(newItem);
+        const [createdItem] = await db.select().from(invoiceItems).where(eq(invoiceItems.id, itemInsertResult.insertId));
+        createdItems.push(createdItem);
       }
-      
+
       // Format response
       const client = existingClient[0];
-      
+
       return NextResponse.json({
         ...insertResult[0],
         client: {
@@ -310,10 +313,10 @@ export async function POST(request: NextRequest) {
           amount: item.amount,
         })),
       }, { status: 201 });
-      
+
     } catch (error) {
       console.error('Error creating invoice:', error);
-      
+
       if (error instanceof Error) {
         if (error.name === 'ZodError') {
           return NextResponse.json(
@@ -321,13 +324,13 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        
+
         return NextResponse.json(
           { message: error.message || 'Internal server error' },
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
         { message: 'Internal server error' },
         { status: 500 }

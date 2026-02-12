@@ -11,25 +11,28 @@ async function seedAdmin() {
 
   try {
     console.log('Checking for existing company...');
-    
+
     // Check if company exists
     let [company] = await db.select().from(companies).limit(1);
-    
+
     if (!company) {
       console.log('Creating default company...');
-      [company] = await db.insert(companies).values({
+      const [result] = await db.insert(companies).values({
         name: companyName,
         defaultCurrency: 'XAF',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      }).returning();
+      });
+
+      const [newCompany] = await db.select().from(companies).where(eq(companies.id, result.insertId));
+      company = newCompany;
       console.log(`✅ Company created: ${company.name} (ID: ${company.id})`);
     } else {
       console.log(`✅ Company already exists: ${company.name} (ID: ${company.id})`);
     }
 
     console.log('Checking for Super Admin user...');
-    
+
     // Check if user exists
     const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
@@ -49,9 +52,9 @@ async function seedAdmin() {
 
     // Create user with companyId
     const passwordHash = await bcrypt.hash(rawPassword, 10);
-    
+
     console.log('Creating Super Admin user...');
-    const [newUser] = await db.insert(users).values({
+    const [userResult] = await db.insert(users).values({
       email,
       password: passwordHash,
       name: 'Elisbrown Sigala Sunyin',
@@ -59,7 +62,10 @@ async function seedAdmin() {
       companyId: company.id,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    }).returning();
+    });
+
+    // We don't strictly need to select the user back to confirm, but if we did:
+    const [newUser] = await db.select().from(users).where(eq(users.id, userResult.insertId));
 
     console.log(`✅ Super Admin created successfully: ${newUser.email} (Company ID: ${newUser.companyId})`);
 

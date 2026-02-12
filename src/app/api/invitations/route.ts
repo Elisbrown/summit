@@ -29,15 +29,15 @@ const inviteSchema = z.object({
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check authentication and permissions
-    if (!session?.user || !session.user.companyId || 
-        !session.user.permissions?.['users.invite']) {
+    if (!session?.user || !session.user.companyId ||
+      !session.user.permissions?.['users.invite']) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const companyId = parseInt(session.user.companyId);
-    
+
     // Get all pending invitations for the company
     const invitations = await db
       .select({
@@ -57,7 +57,7 @@ export async function GET() {
         )
       )
       .orderBy(companyInvitations.createdAt);
-    
+
     return NextResponse.json(invitations);
   } catch (error) {
     console.error('Error fetching invitations:', error);
@@ -72,19 +72,19 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check authentication and permissions
-    if (!session?.user || !session.user.companyId || 
-        !session.user.permissions?.['users.invite']) {
+    if (!session?.user || !session.user.companyId ||
+      !session.user.permissions?.['users.invite']) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const companyId = parseInt(session.user.companyId);
-    
+
     // Parse and validate request body
     const body = await request.json();
     const { email, role, name } = inviteSchema.parse(body);
-    
+
     // Check if user already exists in the company
     const existingUser = await db
       .select({ id: users.id })
@@ -96,14 +96,14 @@ export async function POST(request: NextRequest) {
           eq(users.softDelete, false)
         )
       );
-    
+
     if (existingUser.length > 0) {
       return NextResponse.json(
         { message: 'A user with this email already exists in your company' },
         { status: 409 }
       );
     }
-    
+
     // Check if there's a pending invitation for this email
     const existingInvitation = await db
       .select({ id: companyInvitations.id })
@@ -115,21 +115,21 @@ export async function POST(request: NextRequest) {
           eq(companyInvitations.status, 'pending')
         )
       );
-    
+
     if (existingInvitation.length > 0) {
       return NextResponse.json(
         { message: 'An invitation has already been sent to this email' },
         { status: 409 }
       );
     }
-    
+
     // Generate invitation token and expiration date (48 hours from now)
     const token = uuidv4();
     const expires = new Date();
     expires.setHours(expires.getHours() + 48);
-    
+
     // Create invitation record
-    const [invitation] = await db
+    const [insertResult] = await db
       .insert(companyInvitations)
       .values({
         companyId,
@@ -141,26 +141,27 @@ export async function POST(request: NextRequest) {
         expires: expires.toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
-      .returning();
-    
+      });
+
+    const [invitation] = await db.select().from(companyInvitations).where(eq(companyInvitations.id, insertResult.insertId));
+
     if (!invitation) {
       throw new Error('Failed to create invitation');
     }
-    
+
     // Get company information
     const [company] = await db
       .select({ name: companies.name })
       .from(companies)
       .where(eq(companies.id, companyId));
-    
+
     // Send invitation email
     const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://app.sigalix.net';
     const acceptUrl = `${baseUrl}/accept-invitation?token=${token}`;
 
     const fromEmail = `${process.env.RESEND_FROM_NAME} <${process.env.RESEND_FROM_EMAIL || 'noreply@sigalix.net'}>`
     const toEmail = email;
-    
+
     // Send email using Resend
     const { data, error } = await getResend().emails.send({
       from: fromEmail,
@@ -178,21 +179,21 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error sending invitation email:', error);
     }
-    
+
     return NextResponse.json({
       message: 'Invitation sent successfully',
       id: invitation.id,
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating invitation:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: 'Validation error', errors: error.errors },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { message: 'Failed to create invitation' },
       { status: 500 }

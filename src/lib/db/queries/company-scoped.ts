@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { SQL, and, eq } from 'drizzle-orm';
-import { PgTableWithColumns } from 'drizzle-orm/pg-core';
+import { MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
 
 /**
  * Utility for ensuring all database queries are scoped to the user's company
@@ -10,7 +10,7 @@ import { PgTableWithColumns } from 'drizzle-orm/pg-core';
 /**
  * Get records from a table scoped to a specific company
  */
-export async function getCompanyScopedRecords<T extends PgTableWithColumns<any>>({
+export async function getCompanyScopedRecords<T extends MySqlTableWithColumns<any>>({
   table,
   companyId,
   where = undefined,
@@ -29,11 +29,11 @@ export async function getCompanyScopedRecords<T extends PgTableWithColumns<any>>
 }) {
   // Build all conditions first
   let conditions: SQL<unknown> | undefined = eq(table.companyId as any, companyId);
-  
+
   if (!withSoftDeleted && 'softDelete' in table) {
     conditions = and(conditions, eq(table.softDelete as any, false));
   }
-  
+
   if (where) {
     conditions = and(conditions, where);
   }
@@ -62,7 +62,7 @@ export async function getCompanyScopedRecords<T extends PgTableWithColumns<any>>
 /**
  * Get a single record from a table scoped to a specific company
  */
-export async function getCompanyScopedRecord<T extends PgTableWithColumns<any>>({
+export async function getCompanyScopedRecord<T extends MySqlTableWithColumns<any>>({
   table,
   companyId,
   id,
@@ -93,7 +93,7 @@ export async function getCompanyScopedRecord<T extends PgTableWithColumns<any>>(
 /**
  * Insert a record into a table with company ID automatically applied
  */
-export async function insertCompanyScopedRecord<T extends PgTableWithColumns<any>, U>({
+export async function insertCompanyScopedRecord<T extends MySqlTableWithColumns<any>, U>({
   table,
   companyId,
   data,
@@ -102,19 +102,18 @@ export async function insertCompanyScopedRecord<T extends PgTableWithColumns<any
   companyId: number;
   data: U;
 }) {
-  return db
+  const [result] = await db
     .insert(table)
-    .values({
-      ...data,
-      companyId,
-    } as any)
-    .returning();
+    .values({ ...data, companyId } as any);
+
+  const [created] = await db.select().from(table).where(eq(table.id, result.insertId));
+  return created;
 }
 
 /**
  * Update a record in a table scoped to a specific company
  */
-export async function updateCompanyScopedRecord<T extends PgTableWithColumns<any>, U>({
+export async function updateCompanyScopedRecord<T extends MySqlTableWithColumns<any>, U>({
   table,
   companyId,
   id,
@@ -125,23 +124,19 @@ export async function updateCompanyScopedRecord<T extends PgTableWithColumns<any
   id: number;
   data: U;
 }) {
-  return db
+  await db
     .update(table)
-    .set({
-      ...data,
-      updatedAt: new Date().toISOString(),
-    } as any)
-    .where(and(
-      eq(table.companyId as any, companyId),
-      eq(table.id as any, id)
-    ))
-    .returning();
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(table.id, id), eq(table.companyId, companyId)));
+
+  const [updated] = await db.select().from(table).where(eq(table.id, id));
+  return updated;
 }
 
 /**
  * Soft delete a record in a table scoped to a specific company
  */
-export async function softDeleteCompanyScopedRecord<T extends PgTableWithColumns<any>>({
+export async function softDeleteCompanyScopedRecord<T extends MySqlTableWithColumns<any>>({
   table,
   companyId,
   id,
@@ -150,24 +145,20 @@ export async function softDeleteCompanyScopedRecord<T extends PgTableWithColumns
   companyId: number;
   id: number;
 }) {
-  return db
+  await db
     .update(table)
-    .set({
-      softDelete: true,
-      updatedAt: new Date().toISOString(),
-    } as any)
-    .where(and(
-      eq(table.companyId as any, companyId),
-      eq(table.id as any, id)
-    ))
-    .returning();
+    .set({ softDelete: true, updatedAt: new Date() })
+    .where(and(eq(table.id, id), eq(table.companyId, companyId)));
+
+  const [deleted] = await db.select().from(table).where(eq(table.id, id));
+  return deleted;
 }
 
 /**
  * Hard delete a record in a table scoped to a specific company
  * Use with caution as this permanently removes data
  */
-export async function hardDeleteCompanyScopedRecord<T extends PgTableWithColumns<any>>({
+export async function hardDeleteCompanyScopedRecord<T extends MySqlTableWithColumns<any>>({
   table,
   companyId,
   id,
@@ -176,11 +167,9 @@ export async function hardDeleteCompanyScopedRecord<T extends PgTableWithColumns
   companyId: number;
   id: number;
 }) {
-  return db
+  await db
     .delete(table)
-    .where(and(
-      eq(table.companyId as any, companyId),
-      eq(table.id as any, id)
-    ))
-    .returning();
-} 
+    .where(and(eq(table.id, id), eq(table.companyId, companyId)));
+
+  return { id };
+}

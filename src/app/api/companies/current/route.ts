@@ -23,22 +23,22 @@ const companyUpdateSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || !session.user.companyId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const companyId = parseInt(session.user.companyId);
-    
+
     const [company] = await db
       .select()
       .from(companies)
       .where(eq(companies.id, companyId));
-    
+
     if (!company) {
       return NextResponse.json({ message: 'Company not found' }, { status: 404 });
     }
-    
+
     return NextResponse.json(company);
   } catch (error) {
     console.error('Error fetching company:', error);
@@ -53,19 +53,19 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || !session.user.companyId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const companyId = parseInt(session.user.companyId);
-    
+
     // Parse and validate the request body
     const body = await request.json();
     const validatedData = companyUpdateSchema.parse(body);
-    
+
     // Update the company
-    const [updatedCompany] = await db
+    await db
       .update(companies)
       .set({
         name: validatedData.name,
@@ -79,24 +79,25 @@ export async function PUT(request: NextRequest) {
         taxNumber: validatedData.taxNumber || null,
         updatedAt: new Date().toISOString(),
       })
-      .where(eq(companies.id, companyId))
-      .returning();
-    
+      .where(eq(companies.id, companyId));
+
+    const [updatedCompany] = await db.select().from(companies).where(eq(companies.id, companyId));
+
     if (!updatedCompany) {
       return NextResponse.json({ message: 'Failed to update company' }, { status: 500 });
     }
-    
+
     return NextResponse.json(updatedCompany);
   } catch (error) {
     console.error('Error updating company:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { message: 'Validation error', errors: error.errors },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { message: 'Failed to update company information' },
       { status: 500 }

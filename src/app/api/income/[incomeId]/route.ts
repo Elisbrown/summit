@@ -64,14 +64,14 @@ export async function GET(
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
-      
+
       if (isNaN(parseInt(incomeId))) {
         return NextResponse.json(
           { error: "Invalid income ID" },
           { status: 400 }
         );
       }
-      
+
       // Fetch the income entry with related data
       const result = await db
         .select({
@@ -90,14 +90,14 @@ export async function GET(
           )
         )
         .limit(1);
-      
+
       if (result.length === 0) {
         return NextResponse.json(
           { error: "Income entry not found" },
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json(result[0]);
     } catch (error) {
       console.error("Error fetching income entry:", error);
@@ -118,14 +118,14 @@ export async function PUT(
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
-      
+
       if (isNaN(parseInt(incomeId))) {
         return NextResponse.json(
           { error: "Invalid income ID" },
           { status: 400 }
         );
       }
-      
+
       // Check if income entry exists
       const existingIncome = await db
         .select()
@@ -138,26 +138,26 @@ export async function PUT(
           )
         )
         .limit(1);
-      
+
       if (existingIncome.length === 0) {
         return NextResponse.json(
           { error: "Income entry not found" },
           { status: 404 }
         );
       }
-      
+
       const body = await req.json();
-      
+
       // Validate request body
       const validatedData = updateIncomeSchema.safeParse(body);
-      
+
       if (!validatedData.success) {
         return NextResponse.json(
           { error: validatedData.error.format() },
           { status: 400 }
         );
       }
-      
+
       const {
         categoryId,
         clientId,
@@ -170,15 +170,15 @@ export async function PUT(
         recurring,
         nextDueDate,
       } = validatedData.data;
-      
+
       // Calculate next due date for recurring income
       let calculatedNextDueDate = null;
       if (recurring !== "none") {
         calculatedNextDueDate = nextDueDate || calculateNextDueDate(incomeDate, recurring);
       }
-      
+
       // Update the income entry
-      const [updatedIncome] = await db
+      const [updateResult] = await db
         .update(income)
         .set({
           categoryId: categoryId || null,
@@ -199,8 +199,10 @@ export async function PUT(
             eq(income.companyId, companyId)
           )
         )
-        .returning();
-      
+        ;
+
+      const [updatedIncome] = await db.select().from(income).where(eq(income.id, parseInt(incomeId)));
+
       // Fetch related data for response
       let category = null;
       if (updatedIncome.categoryId) {
@@ -209,12 +211,12 @@ export async function PUT(
           .from(incomeCategories)
           .where(eq(incomeCategories.id, updatedIncome.categoryId))
           .limit(1);
-        
+
         if (categoryResult.length > 0) {
           category = categoryResult[0];
         }
       }
-      
+
       let client = null;
       if (updatedIncome.clientId) {
         const clientResult = await db
@@ -222,12 +224,12 @@ export async function PUT(
           .from(clients)
           .where(eq(clients.id, updatedIncome.clientId))
           .limit(1);
-        
+
         if (clientResult.length > 0) {
           client = clientResult[0];
         }
       }
-      
+
       return NextResponse.json({
         income: updatedIncome,
         category,
@@ -252,14 +254,14 @@ export async function DELETE(
     try {
       const { companyId } = authInfo;
       const { incomeId } = await params;
-      
+
       if (isNaN(parseInt(incomeId))) {
         return NextResponse.json(
           { error: "Invalid income ID" },
           { status: 400 }
         );
       }
-      
+
       // Check if income entry exists
       const existingIncome = await db
         .select()
@@ -272,14 +274,14 @@ export async function DELETE(
           )
         )
         .limit(1);
-      
+
       if (existingIncome.length === 0) {
         return NextResponse.json(
           { error: "Income entry not found" },
           { status: 404 }
         );
       }
-      
+
       // Soft delete the income entry
       await db
         .update(income)
@@ -293,9 +295,9 @@ export async function DELETE(
             eq(income.companyId, companyId)
           )
         );
-      
+
       return NextResponse.json({ message: "Income entry deleted successfully" });
-      
+
     } catch (error) {
       console.error("Error deleting income entry:", error);
       return NextResponse.json(
@@ -309,7 +311,7 @@ export async function DELETE(
 // Helper function to calculate next due date based on recurring type
 function calculateNextDueDate(currentDate: Date, recurring: string): Date {
   const nextDate = new Date(currentDate);
-  
+
   switch (recurring) {
     case "daily":
       nextDate.setDate(nextDate.getDate() + 1);
@@ -324,6 +326,6 @@ function calculateNextDueDate(currentDate: Date, recurring: string): Date {
       nextDate.setFullYear(nextDate.getFullYear() + 1);
       break;
   }
-  
+
   return nextDate;
 } 

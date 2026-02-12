@@ -107,14 +107,15 @@ export async function PUT(
       if (bankAddress !== undefined) updates.bankAddress = bankAddress;
       if (isEnabled !== undefined) updates.isEnabled = isEnabled;
 
-      const [updated] = await db
+      await db
         .update(paymentMethods)
         .set(updates)
         .where(and(
           eq(paymentMethods.id, methodId),
           eq(paymentMethods.companyId, companyId)
-        ))
-        .returning();
+        ));
+
+      const [updated] = await db.select().from(paymentMethods).where(eq(paymentMethods.id, methodId));
 
       return NextResponse.json(updated);
     } catch (error) {

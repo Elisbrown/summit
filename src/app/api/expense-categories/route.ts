@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Get all categories for the company
       const categories = await db
         .select()
@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
           )
         )
         .orderBy(expenseCategories.name);
-      
+
       return NextResponse.json({
         data: categories,
         total: categories.length,
       });
-      
+
     } catch (error) {
       console.error('Error fetching expense categories:', error);
       return NextResponse.json(
@@ -58,19 +58,19 @@ export async function POST(request: NextRequest) {
     try {
       const { companyId } = authInfo;
       const body = await request.json();
-      
+
       // Validate input data
       const validationResult = expenseCategorySchema.safeParse(body);
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: validationResult.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { name } = validationResult.data;
-      
+
       // Check if category with same name already exists for this company
       const existingCategory = await db
         .select({ count: count() })
@@ -82,17 +82,17 @@ export async function POST(request: NextRequest) {
             eq(expenseCategories.softDelete, false)
           )
         );
-      
+
       if (existingCategory[0].count > 0) {
         return NextResponse.json(
           { message: 'A category with this name already exists' },
           { status: 400 }
         );
       }
-      
+
       // Create new category
       const now = new Date();
-      const [category] = await db
+      const [insertResult] = await db
         .insert(expenseCategories)
         .values({
           companyId,
@@ -100,14 +100,15 @@ export async function POST(request: NextRequest) {
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [category] = await db.select().from(expenseCategories).where(eq(expenseCategories.id, insertResult.insertId));
+
       return NextResponse.json(category, { status: 201 });
-      
+
     } catch (error) {
       console.error('Error creating expense category:', error);
-      
+
       if (error instanceof Error) {
         if (error.name === 'ZodError') {
           return NextResponse.json(
@@ -115,13 +116,13 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        
+
         return NextResponse.json(
           { message: error.message || 'Internal server error' },
           { status: 500 }
         );
       }
-      
+
       return NextResponse.json(
         { message: 'Internal server error' },
         { status: 500 }

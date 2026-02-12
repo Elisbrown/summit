@@ -1,0 +1,35 @@
+# Dockerfile.dev
+FROM node:20-alpine
+
+# Install dependencies for Alpine compatibility
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Enable corepack for pnpm support if needed, though we use npm primarily
+RUN corepack enable
+
+# Copy dependency definitions
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN \
+    if [ -f package-lock.json ]; then npm ci; \
+    else npm install; \
+    fi
+
+# Copy the rest of the code
+# Note: In docker-compose, we will bind mount . to /app, hiding this copy.
+# But this copy is useful if we build the image without compose.
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Start the dev server
+CMD ["npm", "run", "dev"]

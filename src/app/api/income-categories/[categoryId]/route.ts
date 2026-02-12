@@ -31,19 +31,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ categoryId: string }> }
 ) {
-  
+
   return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
-      
+
       if (isNaN(parseInt(categoryId))) {
         return NextResponse.json(
           { error: "Invalid category ID" },
           { status: 400 }
         );
       }
-      
+
       // Fetch the category
       const [category] = await db
         .select()
@@ -55,14 +55,14 @@ export async function GET(
             eq(incomeCategories.softDelete, false)
           )
         );
-      
+
       if (!category) {
         return NextResponse.json(
           { error: "Category not found" },
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json(category);
     } catch (error) {
       console.error("Error fetching income category:", error);
@@ -83,28 +83,28 @@ export async function PUT(
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
-      
+
       if (isNaN(parseInt(categoryId))) {
         return NextResponse.json(
           { error: "Invalid category ID" },
           { status: 400 }
         );
       }
-      
+
       const body = await req.json();
-      
+
       // Validate request body
       const validatedData = updateCategorySchema.safeParse(body);
-      
+
       if (!validatedData.success) {
         return NextResponse.json(
           { error: validatedData.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { name } = validatedData.data;
-      
+
       // Check if category exists
       const [existingCategory] = await db
         .select()
@@ -116,14 +116,14 @@ export async function PUT(
             eq(incomeCategories.softDelete, false)
           )
         );
-      
+
       if (!existingCategory) {
         return NextResponse.json(
           { error: "Category not found" },
           { status: 404 }
         );
       }
-      
+
       // Check if there is already another category with the same name
       const duplicateCategories = await db
         .select()
@@ -135,16 +135,16 @@ export async function PUT(
             eq(incomeCategories.softDelete, false)
           )
         );
-      
+
       if (duplicateCategories.length > 0 && duplicateCategories[0].id !== parseInt(categoryId)) {
         return NextResponse.json(
           { error: "A category with this name already exists" },
           { status: 400 }
         );
       }
-      
+
       // Update the category
-      const [updatedCategory] = await db
+      await db
         .update(incomeCategories)
         .set({
           name,
@@ -155,9 +155,10 @@ export async function PUT(
             eq(incomeCategories.id, parseInt(categoryId)),
             eq(incomeCategories.companyId, companyId)
           )
-        )
-        .returning();
-      
+        );
+
+      const [updatedCategory] = await db.select().from(incomeCategories).where(eq(incomeCategories.id, parseInt(categoryId)));
+
       return NextResponse.json(updatedCategory);
     } catch (error) {
       console.error("Error updating income category:", error);
@@ -178,14 +179,14 @@ export async function DELETE(
     try {
       const { companyId } = authInfo;
       const { categoryId } = await params;
-      
+
       if (isNaN(parseInt(categoryId))) {
         return NextResponse.json(
           { error: "Invalid category ID" },
           { status: 400 }
         );
       }
-      
+
       // Check if category exists
       const [existingCategory] = await db
         .select()
@@ -197,18 +198,18 @@ export async function DELETE(
             eq(incomeCategories.softDelete, false)
           )
         );
-      
+
       if (!existingCategory) {
         return NextResponse.json(
           { error: "Category not found" },
           { status: 404 }
         );
       }
-      
+
       // Check if the category is being used
       // You would need to check any tables that reference this category
       // and decide whether to allow deletion or not
-      
+
       // Soft delete the category
       await db
         .update(incomeCategories)
@@ -222,7 +223,7 @@ export async function DELETE(
             eq(incomeCategories.companyId, companyId)
           )
         );
-      
+
       return NextResponse.json({
         message: "Category deleted successfully",
       });

@@ -18,30 +18,30 @@ export async function GET(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Extract query parameters
       const searchParams = request.nextUrl.searchParams;
       let startDate = searchParams.get('startDate');
       let endDate = searchParams.get('endDate');
-      
+
       // If no dates provided, default to last 6 months
       if (!startDate || !endDate) {
         const today = new Date();
         endDate = format(today, 'yyyy-MM-dd');
         startDate = format(subMonths(today, 6), 'yyyy-MM-dd');
       }
-      
+
       // Get profit & loss summary for the specified period
       const summary = await getProfitLossSummary(companyId, startDate, endDate);
-      
+
       // Get monthly breakdown for the chart
       const months = await getMonthlyBreakdown(companyId, startDate, endDate);
-      
+
       return NextResponse.json({
         ...summary,
         months
       });
-      
+
     } catch (error) {
       console.error('Error fetching profit & loss report:', error);
       return NextResponse.json(
@@ -57,38 +57,38 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
   // Get monthly income
   const monthlyIncome = await db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${income.incomeDate})`,
-      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
+      month: sql<string>`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`,
+      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL(65,2))`),
     })
     .from(income)
     .where(
       and(
         eq(income.companyId, companyId),
-        gte(sql`date(${income.incomeDate})`, startDate),
-        lte(sql`date(${income.incomeDate})`, endDate),
+        gte(sql`DATE(${income.incomeDate})`, startDate),
+        lte(sql`DATE(${income.incomeDate})`, endDate),
         eq(income.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${income.incomeDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${income.incomeDate})`);
-  
+    .groupBy(sql`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`);
+
   // Get monthly expenses
   const monthlyExpenses = await db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${expenses.expenseDate})`,
-      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
+      month: sql<string>`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`,
+      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL(65,2))`),
     })
     .from(expenses)
     .where(
       and(
         eq(expenses.companyId, companyId),
-        gte(sql`date(${expenses.expenseDate})`, startDate),
-        lte(sql`date(${expenses.expenseDate})`, endDate),
+        gte(sql`DATE(${expenses.expenseDate})`, startDate),
+        lte(sql`DATE(${expenses.expenseDate})`, endDate),
         eq(expenses.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
+    .groupBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`);
 
   // Transform the data to get an array of months from startDate to endDate
   const months = [];
@@ -99,17 +99,17 @@ async function getMonthlyBreakdown(companyId: number, startDate: string, endDate
     const monthStr = format(currentDate, 'yyyy-MM');
     const incomeData = monthlyIncome.find((i) => i.month === monthStr);
     const expenseData = monthlyExpenses.find((e) => e.month === monthStr);
-    
+
     const incomeAmount = Number(incomeData?.total || 0);
     const expenseAmount = Number(expenseData?.total || 0);
-    
+
     months.push({
       month: monthStr,
       income: incomeAmount,
       expenses: expenseAmount,
       profit: incomeAmount - expenseAmount,
     });
-    
+
     currentDate = startOfMonth(subMonths(currentDate, -1)); // Move to next month
   }
 

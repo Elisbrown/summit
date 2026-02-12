@@ -11,7 +11,7 @@ export const getMonthlyCashInflows = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${transactions.transactionDate})`,
+      month: sql<string>`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`,
       total: sum(sql<number>`${transactions.amount}`),
     })
     .from(transactions)
@@ -24,8 +24,8 @@ export const getMonthlyCashInflows = async (
         eq(transactions.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`);
+    .groupBy(sql`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`);
 
   return query;
 };
@@ -38,7 +38,7 @@ export const getMonthlyCashOutflows = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${transactions.transactionDate})`,
+      month: sql<string>`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`,
       total: sum(sql<number>`${transactions.amount}`),
     })
     .from(transactions)
@@ -51,8 +51,8 @@ export const getMonthlyCashOutflows = async (
         eq(transactions.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`);
+    .groupBy(sql`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${transactions.transactionDate}, '%Y-%m')`);
 
   return query;
 };
@@ -88,7 +88,6 @@ export const getCashFlowByCategory = async (
   endDate: string
 ) => {
   // Operating activities categories (day-to-day business operations)
-  // SQLite uses LIKE instead of ILIKE (case-insensitive by default for ASCII)
   const operatingCategoryIds = await db
     .select({
       id: sql<number>`id`,
@@ -321,14 +320,14 @@ export const getCashFlowSummary = async (
   const totalInflows = Number(inflowsResult?.total || 0);
   const totalOutflows = Number(outflowsResult?.total || 0);
   const netCashFlow = totalInflows - totalOutflows;
-  
+
   // Calculate starting balance by adjusting the current balance
   const currentBalance = Number(startingBalanceResult?.total || 0);
   const creditsSinceEnd = Number(transactionsSinceEndResult?.credits || 0);
   const debitsSinceEnd = Number(transactionsSinceEndResult?.debits || 0);
   const creditsBeforeStart = Number(transactionsBeforeStartResult?.credits || 0);
   const debitsBeforeStart = Number(transactionsBeforeStartResult?.debits || 0);
-  
+
   // Current balance - (credits since end - debits since end) + (debits before start - credits before start)
   const startingBalance = currentBalance - (creditsSinceEnd - debitsSinceEnd) + (debitsBeforeStart - creditsBeforeStart);
   const endingBalance = startingBalance + netCashFlow;
@@ -356,7 +355,7 @@ export const getMonthsCashFlow = async (companyId: number, months: number = 6) =
 
   // Get monthly inflows
   const monthlyInflows = await getMonthlyCashInflows(companyId, startDate, endDate);
-  
+
   // Get monthly outflows
   const monthlyOutflows = await getMonthlyCashOutflows(companyId, startDate, endDate);
 
@@ -375,14 +374,14 @@ export const getMonthsCashFlow = async (companyId: number, months: number = 6) =
     const monthStr = format(currentDate, 'yyyy-MM');
     const inflowData = monthlyInflows.find((i) => i.month === monthStr);
     const outflowData = monthlyOutflows.find((e) => e.month === monthStr);
-    
+
     const inflowAmount = Number(inflowData?.total || 0);
     const outflowAmount = Number(outflowData?.total || 0);
     const netFlow = inflowAmount - outflowAmount;
-    
+
     // Update running balance
     runningBalance += netFlow;
-    
+
     months_data.push({
       month: monthStr,
       inflows: inflowAmount,
@@ -390,7 +389,7 @@ export const getMonthsCashFlow = async (companyId: number, months: number = 6) =
       netFlow: netFlow,
       balance: runningBalance,
     });
-    
+
     currentDate = startOfMonth(subMonths(currentDate, -1)); // Move to next month
   }
 

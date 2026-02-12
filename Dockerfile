@@ -112,8 +112,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 # Copy pnpm lock file for pnpm commands
 COPY --from=builder --chown=nextjs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
-# Ensure .env file can be created if needed by drizzle-kit
-RUN mkdir -p /app && chown -R nextjs:nodejs /app
+# Ensure proper ownership
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 

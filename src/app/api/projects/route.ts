@@ -11,22 +11,22 @@ export async function GET(request: NextRequest) {
     try {
       const { companyId, userId } = authInfo;
       const searchParams = request.nextUrl.searchParams;
-      
+
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '10');
       const status = searchParams.get('status');
       const search = searchParams.get('search') || '';
       const sortBy = searchParams.get('sortBy') || 'createdAt';
       const sortOrder = searchParams.get('sortOrder') || 'desc';
-      
+
       const offset = (page - 1) * limit;
-      
+
       // Base conditions
       let conditions = and(
         eq(projects.companyId, companyId),
         eq(projects.softDelete, false)
       );
-      
+
       // Status filter
       if (status && status !== 'all') {
         if (['active', 'completed', 'paused', 'cancelled'].includes(status)) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      
+
       // Search filter
       if (search) {
         conditions = and(
@@ -44,15 +44,15 @@ export async function GET(request: NextRequest) {
           like(projects.title, `%${search}%`)
         );
       }
-      
+
       // Count total
       const totalResult = await db
         .select({ count: count() })
         .from(projects)
         .where(conditions);
-      
+
       const total = Number(totalResult[0]?.count || 0);
-      
+
       // Fetch projects
       const projectList = await db
         .select()
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         )
         .limit(limit)
         .offset(offset);
-      
+
       // For each project, get member count
       const projectsWithMeta = await Promise.all(
         projectList.map(async (project) => {
@@ -73,14 +73,14 @@ export async function GET(request: NextRequest) {
             .select({ count: count() })
             .from(projectMembers)
             .where(eq(projectMembers.projectId, project.id));
-          
+
           return {
             ...project,
             memberCount: Number(memberCount[0]?.count || 0),
           };
         })
       );
-      
+
       return NextResponse.json({
         data: projectsWithMeta,
         total,
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     try {
       const { companyId, userId } = authInfo;
       const body = await request.json();
-      
+
       // Validate
       const validation = projectSchema.safeParse(body);
       if (!validation.success) {
@@ -113,24 +113,24 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      
+
       const { title, description, status, priority, startDate, endDate, colorCode, memberIds, clientId } = validation.data;
-      
+
       // Verify client if provided
       if (clientId) {
         const [existingClient] = await db
           .select()
           .from(clients)
           .where(and(eq(clients.id, clientId), eq(clients.companyId, companyId), eq(clients.softDelete, false)));
-        
+
         if (!existingClient) {
           return NextResponse.json({ message: 'Client not found' }, { status: 404 });
         }
       }
-      
+
       // Create project (sequential operations for SQLite)
       // Insert project
-      const [newProject] = await db
+      const [result] = await db
         .insert(projects)
         .values({
           companyId,
@@ -144,9 +144,10 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newProject] = await db.select().from(projects).where(eq(projects.id, result.insertId));
+
       // Add creator as admin
       await db.insert(projectMembers).values({
         projectId: newProject.id,
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
         role: 'admin',
         createdAt: new Date().toISOString(),
       });
-      
+
       // Add additional members if provided
       if (memberIds && memberIds.length > 0) {
         // Verify users exist in company
@@ -162,9 +163,9 @@ export async function POST(request: NextRequest) {
           .select({ id: users.id })
           .from(users)
           .where(and(eq(users.companyId, companyId), eq(users.softDelete, false)));
-        
+
         const validUserIds = validUsers.map(u => u.id);
-        
+
         for (const memberId of memberIds) {
           if (memberId !== userId && validUserIds.includes(memberId)) {
             await db.insert(projectMembers).values({
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-      
+
       // Link client if provided
       if (clientId) {
         await db.insert(clientProjects).values({
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
         });
       }
-      
+
       // Create default boards
       const defaultBoards = ['To Do', 'In Progress', 'Done'];
       for (let i = 0; i < defaultBoards.length; i++) {
@@ -197,9 +198,9 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date().toISOString(),
         });
       }
-      
+
       const result = newProject;
-      
+
       return NextResponse.json(result, { status: 201 });
     } catch (error) {
       console.error('Error creating project:', error);

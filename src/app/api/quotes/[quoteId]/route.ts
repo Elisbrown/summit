@@ -142,7 +142,7 @@ export async function PUT(
 
       // Calculate values based on items, ignoring any client-provided values
       const subtotal = validatedData.items.reduce(
-        (sum, item) => sum + item.quantity * parseFloat(item.unitPrice.toString()), 
+        (sum, item) => sum + item.quantity * parseFloat(item.unitPrice.toString()),
         0
       );
       // Ensure tax is a percentage between 0-100, not a multiplier
@@ -152,7 +152,8 @@ export async function PUT(
 
       // Update quote and items (sequential for SQLite)
       // Update quote
-      const [updatedQuote] = await db
+      // Update quote
+      await db
         .update(quotes)
         .set({
           clientId: validatedData.clientId,
@@ -176,8 +177,9 @@ export async function PUT(
             eq(quotes.id, id),
             eq(quotes.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      const [updatedQuote] = await db.select().from(quotes).where(eq(quotes.id, id));
 
       // Delete existing items
       await db
@@ -188,7 +190,7 @@ export async function PUT(
       const itemsToInsert = validatedData.items.map((item) => {
         // Calculate amount server-side regardless of what client sent
         const amount = item.quantity * parseFloat(item.unitPrice.toString());
-        
+
         return {
           quoteId: id,
           description: item.description,
@@ -200,10 +202,11 @@ export async function PUT(
         };
       });
 
-      const items = await db
-        .insert(quoteItems)
-        .values(itemsToInsert)
-        .returning();
+      if (itemsToInsert.length > 0) {
+        await db.insert(quoteItems).values(itemsToInsert);
+      }
+
+      const items = await db.select().from(quoteItems).where(eq(quoteItems.quoteId, id));
 
       return NextResponse.json({ ...updatedQuote, items });
     } catch (error) {
@@ -254,7 +257,8 @@ export async function DELETE(
       }
 
       // Soft delete quote
-      const [deletedQuote] = await db
+      // Soft delete quote
+      await db
         .update(quotes)
         .set({
           softDelete: true,
@@ -265,8 +269,10 @@ export async function DELETE(
             eq(quotes.id, id),
             eq(quotes.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      // We don't strictly need to return the deleted quote, but if the API expects it:
+      const [deletedQuote] = await db.select().from(quotes).where(eq(quotes.id, id));
 
       return NextResponse.json({ message: 'Quote deleted successfully' });
     } catch (error) {

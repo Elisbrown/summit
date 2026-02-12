@@ -11,20 +11,20 @@ export const getMonthlyIncome = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${income.incomeDate})`,
-      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
+      month: sql<string>`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`,
+      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL(65,2))`),
     })
     .from(income)
     .where(
       and(
         eq(income.companyId, companyId),
-        gte(sql`date(${income.incomeDate})`, startDate),
-        lte(sql`date(${income.incomeDate})`, endDate),
+        gte(sql`DATE(${income.incomeDate})`, startDate),
+        lte(sql`DATE(${income.incomeDate})`, endDate),
         eq(income.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${income.incomeDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${income.incomeDate})`);
+    .groupBy(sql`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${income.incomeDate}, '%Y-%m')`);
 
   return query;
 };
@@ -37,20 +37,20 @@ export const getMonthlyExpenses = async (
 ) => {
   const query = db
     .select({
-      month: sql<string>`strftime('%Y-%m', ${expenses.expenseDate})`,
-      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
+      month: sql<string>`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`,
+      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL(65,2))`),
     })
     .from(expenses)
     .where(
       and(
         eq(expenses.companyId, companyId),
-        gte(sql`date(${expenses.expenseDate})`, startDate),
-        lte(sql`date(${expenses.expenseDate})`, endDate),
+        gte(sql`DATE(${expenses.expenseDate})`, startDate),
+        lte(sql`DATE(${expenses.expenseDate})`, endDate),
         eq(expenses.softDelete, false)
       )
     )
-    .groupBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`)
-    .orderBy(sql`strftime('%Y-%m', ${expenses.expenseDate})`);
+    .groupBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`)
+    .orderBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`);
 
   return query;
 };
@@ -65,14 +65,14 @@ export const getExpensesByCategory = async (
     .select({
       categoryId: expenses.categoryId,
       categoryName: sql<string>`COALESCE((SELECT name FROM expense_categories WHERE id = ${expenses.categoryId}), 'Uncategorized')`,
-      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
+      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL(65,2))`),
     })
     .from(expenses)
     .where(
       and(
         eq(expenses.companyId, companyId),
-        gte(sql`date(${expenses.expenseDate})`, startDate),
-        lte(sql`date(${expenses.expenseDate})`, endDate),
+        gte(sql`DATE(${expenses.expenseDate})`, startDate),
+        lte(sql`DATE(${expenses.expenseDate})`, endDate),
         eq(expenses.softDelete, false)
       )
     )
@@ -92,14 +92,14 @@ export const getIncomeByCategory = async (
     .select({
       categoryId: income.categoryId,
       categoryName: sql<string>`COALESCE((SELECT name FROM income_categories WHERE id = ${income.categoryId}), 'Uncategorized')`,
-      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
+      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL(65,2))`),
     })
     .from(income)
     .where(
       and(
         eq(income.companyId, companyId),
-        gte(sql`date(${income.incomeDate})`, startDate),
-        lte(sql`date(${income.incomeDate})`, endDate),
+        gte(sql`DATE(${income.incomeDate})`, startDate),
+        lte(sql`DATE(${income.incomeDate})`, endDate),
         eq(income.softDelete, false)
       )
     )
@@ -118,14 +118,14 @@ export const getProfitLossSummary = async (
   // Get total income
   const [incomeResult] = await db
     .select({
-      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL)`),
+      total: sum(sql<number>`CAST(${income.amount} AS DECIMAL(65,2))`),
     })
     .from(income)
     .where(
       and(
         eq(income.companyId, companyId),
-        gte(sql`date(${income.incomeDate})`, startDate),
-        lte(sql`date(${income.incomeDate})`, endDate),
+        gte(sql`DATE(${income.incomeDate})`, startDate),
+        lte(sql`DATE(${income.incomeDate})`, endDate),
         eq(income.softDelete, false)
       )
     );
@@ -133,14 +133,14 @@ export const getProfitLossSummary = async (
   // Get total expenses
   const [expensesResult] = await db
     .select({
-      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL)`),
+      total: sum(sql<number>`CAST(${expenses.amount} AS DECIMAL(65,2))`),
     })
     .from(expenses)
     .where(
       and(
         eq(expenses.companyId, companyId),
-        gte(sql`date(${expenses.expenseDate})`, startDate),
-        lte(sql`date(${expenses.expenseDate})`, endDate),
+        gte(sql`DATE(${expenses.expenseDate})`, startDate),
+        lte(sql`DATE(${expenses.expenseDate})`, endDate),
         eq(expenses.softDelete, false)
       )
     );
@@ -168,7 +168,7 @@ export const getLast6MonthsProfitLoss = async (companyId: number) => {
 
   // Get monthly income
   const monthlyIncome = await getMonthlyIncome(companyId, startDate, endDate);
-  
+
   // Get monthly expenses
   const monthlyExpenses = await getMonthlyExpenses(companyId, startDate, endDate);
 
@@ -181,17 +181,17 @@ export const getLast6MonthsProfitLoss = async (companyId: number) => {
     const monthStr = format(currentDate, 'yyyy-MM');
     const incomeData = monthlyIncome.find((i) => i.month === monthStr);
     const expenseData = monthlyExpenses.find((e) => e.month === monthStr);
-    
+
     const incomeAmount = Number(incomeData?.total || 0);
     const expenseAmount = Number(expenseData?.total || 0);
-    
+
     months.push({
       month: monthStr,
       income: incomeAmount,
       expenses: expenseAmount,
       profit: incomeAmount - expenseAmount,
     });
-    
+
     currentDate = startOfMonth(subMonths(currentDate, -1)); // Move to next month
   }
 

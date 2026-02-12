@@ -116,7 +116,7 @@ export async function PUT(
       }
 
       // Update account
-      const [updatedAccount] = await db
+      await db
         .update(accounts)
         .set({
           name,
@@ -126,8 +126,9 @@ export async function PUT(
           initialBalance: initialBalance !== undefined ? String(initialBalance) : existingAccount.initialBalance,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(accounts.id, id))
-        .returning();
+        .where(eq(accounts.id, id));
+
+      const [updatedAccount] = await db.select().from(accounts).where(eq(accounts.id, id));
 
       return NextResponse.json(updatedAccount);
 

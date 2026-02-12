@@ -1,430 +1,427 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { mysqlTable, varchar, int, boolean, text, double } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
-// ============ ENUMS (stored as text in SQLite) ============
-// SQLite doesn't have native enums, so we use text with type constraints
-
 // ============ COMPANIES ============
-export const companies = sqliteTable('companies', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
+export const companies = mysqlTable('companies', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }).notNull(),
   address: text('address'),
-  defaultCurrency: text('default_currency').default('XAF').notNull(),
-  logoUrl: text('logo_url'),
+  defaultCurrency: varchar('default_currency', { length: 10 }).default('XAF').notNull(),
+  logoUrl: varchar('logo_url', { length: 512 }),
   bankAccount: text('bank_account'),
-  email: text('email'),
-  phone: text('phone'),
-  website: text('website'),
-  taxNumber: text('tax_number'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  website: varchar('website', { length: 512 }),
+  taxNumber: varchar('tax_number', { length: 100 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ USERS ============
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name'),
-  email: text('email').notNull().unique(),
-  password: text('password'),
-  role: text('role').$type<'admin' | 'staff' | 'accountant'>().default('staff').notNull(),
-  companyId: integer('company_id').references(() => companies.id),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+export const users = mysqlTable('users', {
+  id: int('id').primaryKey().autoincrement(),
+  name: varchar('name', { length: 255 }),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }),
+  role: varchar('role', { length: 20 }).$type<'admin' | 'staff' | 'accountant'>().default('staff').notNull(),
+  companyId: int('company_id').references(() => companies.id),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ CLIENTS ============
-export const clients = sqliteTable('clients', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  email: text('email'),
-  phone: text('phone'),
+export const clients = mysqlTable('clients', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
   address: text('address'),
-  paymentTerms: integer('payment_terms').default(30),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  paymentTerms: int('payment_terms').default(30),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ INVOICES ============
-export const invoices = sqliteTable('invoices', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  invoiceNumber: text('invoice_number').notNull(),
-  status: text('status').$type<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>().default('draft').notNull(),
-  issueDate: text('issue_date').notNull(),
-  dueDate: text('due_date').notNull(),
-  subtotal: text('subtotal').notNull(),
-  tax: text('tax').default('0'),
-  taxRate: text('tax_rate').default('0'),
-  total: text('total').notNull(),
+export const invoices = mysqlTable('invoices', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  invoiceNumber: varchar('invoice_number', { length: 100 }).notNull(),
+  status: varchar('status', { length: 20 }).$type<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>().default('draft').notNull(),
+  issueDate: varchar('issue_date', { length: 50 }).notNull(),
+  dueDate: varchar('due_date', { length: 50 }).notNull(),
+  subtotal: varchar('subtotal', { length: 50 }).notNull(),
+  tax: varchar('tax', { length: 50 }).default('0'),
+  taxRate: varchar('tax_rate', { length: 50 }).default('0'),
+  total: varchar('total', { length: 50 }).notNull(),
   notes: text('notes'),
-  currency: text('currency').default('XAF').notNull(),
-  recurring: text('recurring').$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
-  nextDueDate: text('next_due_date'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  paidAt: text('paid_at'),
-  xenditInvoiceUrl: text('xendit_invoice_url'),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  recurring: varchar('recurring', { length: 20 }).$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
+  nextDueDate: varchar('next_due_date', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  paidAt: varchar('paid_at', { length: 50 }),
+  xenditInvoiceUrl: varchar('xendit_invoice_url', { length: 512 }),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ INVOICE ITEMS ============
-export const invoiceItems = sqliteTable('invoice_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  invoiceId: integer('invoice_id').notNull().references(() => invoices.id),
+export const invoiceItems = mysqlTable('invoice_items', {
+  id: int('id').primaryKey().autoincrement(),
+  invoiceId: int('invoice_id').notNull().references(() => invoices.id),
   description: text('description').notNull(),
-  quantity: text('quantity').notNull(),
-  unitPrice: text('unit_price').notNull(),
-  amount: text('amount').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+  quantity: varchar('quantity', { length: 50 }).notNull(),
+  unitPrice: varchar('unit_price', { length: 50 }).notNull(),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ QUOTES ============
-export const quotes = sqliteTable('quotes', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  quoteNumber: text('quote_number').notNull(),
-  status: text('status').$type<'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'>().default('draft').notNull(),
-  issueDate: text('issue_date').notNull(),
-  expiryDate: text('expiry_date').notNull(),
-  subtotal: text('subtotal').notNull(),
-  tax: text('tax').default('0'),
-  taxRate: text('tax_rate').default('0'),
-  total: text('total').notNull(),
-  currency: text('currency').default('XAF').notNull(),
+export const quotes = mysqlTable('quotes', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  quoteNumber: varchar('quote_number', { length: 100 }).notNull(),
+  status: varchar('status', { length: 20 }).$type<'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'>().default('draft').notNull(),
+  issueDate: varchar('issue_date', { length: 50 }).notNull(),
+  expiryDate: varchar('expiry_date', { length: 50 }).notNull(),
+  subtotal: varchar('subtotal', { length: 50 }).notNull(),
+  tax: varchar('tax', { length: 50 }).default('0'),
+  taxRate: varchar('tax_rate', { length: 50 }).default('0'),
+  total: varchar('total', { length: 50 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
   notes: text('notes'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  acceptedAt: text('accepted_at'),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
-  convertedToInvoiceId: integer('converted_to_invoice_id').references(() => invoices.id),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  acceptedAt: varchar('accepted_at', { length: 50 }),
+  softDelete: boolean('soft_delete').default(false).notNull(),
+  convertedToInvoiceId: int('converted_to_invoice_id').references(() => invoices.id),
 });
 
 // ============ QUOTE ITEMS ============
-export const quoteItems = sqliteTable('quote_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  quoteId: integer('quote_id').notNull().references(() => quotes.id),
+export const quoteItems = mysqlTable('quote_items', {
+  id: int('id').primaryKey().autoincrement(),
+  quoteId: int('quote_id').notNull().references(() => quotes.id),
   description: text('description').notNull(),
-  quantity: text('quantity').notNull(),
-  unitPrice: text('unit_price').notNull(),
-  amount: text('amount').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+  quantity: varchar('quantity', { length: 50 }).notNull(),
+  unitPrice: varchar('unit_price', { length: 50 }).notNull(),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ EXPENSE CATEGORIES ============
-export const expenseCategories = sqliteTable('expense_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+export const expenseCategories = mysqlTable('expense_categories', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ VENDORS ============
-export const vendors = sqliteTable('vendors', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  contactName: text('contact_name'),
-  email: text('email'),
-  phone: text('phone'),
+export const vendors = mysqlTable('vendors', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  contactName: varchar('contact_name', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
   address: text('address'),
-  website: text('website'),
+  website: varchar('website', { length: 512 }),
   notes: text('notes'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ EXPENSES ============
-export const expenses = sqliteTable('expenses', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  categoryId: integer('category_id').references(() => expenseCategories.id),
-  vendorId: integer('vendor_id').references(() => vendors.id),
-  vendor: text('vendor'),
+export const expenses = mysqlTable('expenses', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  categoryId: int('category_id').references(() => expenseCategories.id),
+  vendorId: int('vendor_id').references(() => vendors.id),
+  vendor: varchar('vendor', { length: 255 }),
   description: text('description'),
-  amount: text('amount').notNull(),
-  currency: text('currency').default('XAF').notNull(),
-  expenseDate: text('expense_date').notNull(),
-  receiptUrl: text('receipt_url'),
-  status: text('status').$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
-  recurring: text('recurring').$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
-  nextDueDate: text('next_due_date'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  expenseDate: varchar('expense_date', { length: 50 }).notNull(),
+  receiptUrl: varchar('receipt_url', { length: 512 }),
+  status: varchar('status', { length: 20 }).$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
+  recurring: varchar('recurring', { length: 20 }).$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
+  nextDueDate: varchar('next_due_date', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ INCOME CATEGORIES ============
-export const incomeCategories = sqliteTable('income_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+export const incomeCategories = mysqlTable('income_categories', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ INCOME ============
-export const income = sqliteTable('income', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  categoryId: integer('category_id').references(() => incomeCategories.id),
-  clientId: integer('client_id').references(() => clients.id),
-  invoiceId: integer('invoice_id').references(() => invoices.id),
-  source: text('source'),
+export const income = mysqlTable('income', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  categoryId: int('category_id').references(() => incomeCategories.id),
+  clientId: int('client_id').references(() => clients.id),
+  invoiceId: int('invoice_id').references(() => invoices.id),
+  source: varchar('source', { length: 255 }),
   description: text('description'),
-  amount: text('amount').notNull(),
-  currency: text('currency').default('XAF').notNull(),
-  incomeDate: text('income_date').notNull(),
-  recurring: text('recurring').$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
-  nextDueDate: text('next_due_date'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  incomeDate: varchar('income_date', { length: 50 }).notNull(),
+  recurring: varchar('recurring', { length: 20 }).$type<'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'>().default('none').notNull(),
+  nextDueDate: varchar('next_due_date', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ API TOKENS ============
-export const apiTokens = sqliteTable('api_tokens', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull().references(() => users.id),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  tokenPrefix: text('token_prefix').notNull().unique(),
-  tokenHash: text('token_hash').notNull(),
-  expiresAt: text('expires_at'),
-  lastUsedAt: text('last_used_at'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  revokedAt: text('revoked_at'),
+export const apiTokens = mysqlTable('api_tokens', {
+  id: int('id').primaryKey().autoincrement(),
+  userId: int('user_id').notNull().references(() => users.id),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  tokenPrefix: varchar('token_prefix', { length: 100 }).notNull().unique(),
+  tokenHash: varchar('token_hash', { length: 255 }).notNull(),
+  expiresAt: varchar('expires_at', { length: 50 }),
+  lastUsedAt: varchar('last_used_at', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  revokedAt: varchar('revoked_at', { length: 50 }),
 });
 
 // ============ CLIENT LOGIN TOKENS ============
-export const clientLoginTokens = sqliteTable('client_login_tokens', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  email: text('email').notNull(),
-  token: text('token').notNull().unique(),
-  expires: text('expires').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  usedAt: text('used_at'),
+export const clientLoginTokens = mysqlTable('client_login_tokens', {
+  id: int('id').primaryKey().autoincrement(),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expires: varchar('expires', { length: 50 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  usedAt: varchar('used_at', { length: 50 }),
 });
 
 // ============ CLIENT USERS ============
-export const clientUsers = sqliteTable('client_users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  email: text('email').notNull(),
-  name: text('name'),
-  tokenVersion: integer('token_version').default(1).notNull(),
-  lastLoginAt: text('last_login_at'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+export const clientUsers = mysqlTable('client_users', {
+  id: int('id').primaryKey().autoincrement(),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }),
+  tokenVersion: int('token_version').default(1).notNull(),
+  lastLoginAt: varchar('last_login_at', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ COMPANY INVITATIONS ============
-export const companyInvitations = sqliteTable('company_invitations', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  email: text('email').notNull(),
-  name: text('name'),
-  role: text('role').$type<'admin' | 'staff' | 'accountant'>().default('staff').notNull(),
-  token: text('token').notNull().unique(),
-  status: text('status').$type<'pending' | 'accepted' | 'expired' | 'cancelled'>().default('pending').notNull(),
-  expires: text('expires').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  usedAt: text('used_at'),
+export const companyInvitations = mysqlTable('company_invitations', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }),
+  role: varchar('role', { length: 20 }).$type<'admin' | 'staff' | 'accountant'>().default('staff').notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  status: varchar('status', { length: 20 }).$type<'pending' | 'accepted' | 'expired' | 'cancelled'>().default('pending').notNull(),
+  expires: varchar('expires', { length: 50 }).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  usedAt: varchar('used_at', { length: 50 }),
 });
 
 // ============ PAYMENT METHODS ============
-export const paymentMethods = sqliteTable('payment_methods', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  type: text('type').$type<'mtn_momo' | 'orange_money' | 'bank_transfer'>().notNull(),
-  accountName: text('account_name').notNull(),
-  accountNumber: text('account_number').notNull(),
-  bankName: text('bank_name'),
-  bankCode: text('bank_code'),
-  bankBranch: text('bank_branch'),
+export const paymentMethods = mysqlTable('payment_methods', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  type: varchar('type', { length: 30 }).$type<'mtn_momo' | 'orange_money' | 'bank_transfer'>().notNull(),
+  accountName: varchar('account_name', { length: 255 }).notNull(),
+  accountNumber: varchar('account_number', { length: 100 }).notNull(),
+  bankName: varchar('bank_name', { length: 255 }),
+  bankCode: varchar('bank_code', { length: 50 }),
+  bankBranch: varchar('bank_branch', { length: 255 }),
   bankAddress: text('bank_address'),
-  isEnabled: integer('is_enabled', { mode: 'boolean' }).default(true).notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ ACCOUNTS ============
-export const accounts = sqliteTable('accounts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  name: text('name').notNull(),
-  type: text('type').$type<'bank' | 'credit_card' | 'cash'>().notNull(),
-  currency: text('currency').default('XAF').notNull(),
-  accountNumber: text('account_number'),
-  initialBalance: text('initial_balance').default('0').notNull(),
-  currentBalance: text('current_balance').default('0').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+export const accounts = mysqlTable('accounts', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  type: varchar('type', { length: 20 }).$type<'bank' | 'credit_card' | 'cash'>().notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  accountNumber: varchar('account_number', { length: 100 }),
+  initialBalance: varchar('initial_balance', { length: 50 }).default('0').notNull(),
+  currentBalance: varchar('current_balance', { length: 50 }).default('0').notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ TRANSACTIONS ============
-export const transactions = sqliteTable('transactions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  accountId: integer('account_id').notNull().references(() => accounts.id),
-  type: text('type').$type<'debit' | 'credit'>().notNull(),
+export const transactions = mysqlTable('transactions', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  accountId: int('account_id').notNull().references(() => accounts.id),
+  type: varchar('type', { length: 10 }).$type<'debit' | 'credit'>().notNull(),
   description: text('description').notNull(),
-  amount: text('amount').notNull(),
-  currency: text('currency').default('XAF').notNull(),
-  transactionDate: text('transaction_date').notNull(),
-  categoryId: integer('category_id'),
-  relatedInvoiceId: integer('related_invoice_id').references(() => invoices.id),
-  relatedExpenseId: integer('related_expense_id').references(() => expenses.id),
-  relatedIncomeId: integer('related_income_id').references(() => income.id),
-  reconciled: integer('reconciled', { mode: 'boolean' }).default(false).notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  transactionDate: varchar('transaction_date', { length: 50 }).notNull(),
+  categoryId: int('category_id'),
+  relatedInvoiceId: int('related_invoice_id').references(() => invoices.id),
+  relatedExpenseId: int('related_expense_id').references(() => expenses.id),
+  relatedIncomeId: int('related_income_id').references(() => income.id),
+  reconciled: boolean('reconciled').default(false).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ PAYMENTS ============
-export const payments = sqliteTable('payments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  invoiceId: integer('invoice_id').notNull().references(() => invoices.id),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  amount: text('amount').notNull(),
-  currency: text('currency').default('XAF').notNull(),
-  paymentDate: text('payment_date').notNull(),
-  paymentMethod: text('payment_method').$type<'card' | 'bank_transfer' | 'cash' | 'other'>().notNull(),
-  transactionId: integer('transaction_id').references(() => transactions.id),
-  paymentProcessorReference: text('payment_processor_reference'),
-  status: text('status').$type<'pending' | 'completed' | 'failed'>().default('pending').notNull(),
+export const payments = mysqlTable('payments', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  invoiceId: int('invoice_id').notNull().references(() => invoices.id),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  amount: varchar('amount', { length: 50 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('XAF').notNull(),
+  paymentDate: varchar('payment_date', { length: 50 }).notNull(),
+  paymentMethod: varchar('payment_method', { length: 20 }).$type<'card' | 'bank_transfer' | 'cash' | 'other'>().notNull(),
+  transactionId: int('transaction_id').references(() => transactions.id),
+  paymentProcessorReference: varchar('payment_processor_reference', { length: 255 }),
+  status: varchar('status', { length: 20 }).$type<'pending' | 'completed' | 'failed'>().default('pending').notNull(),
   notes: text('notes'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ PROJECTS ============
-export const projects = sqliteTable('projects', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  title: text('title').notNull(),
+export const projects = mysqlTable('projects', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
-  status: text('status').$type<'active' | 'completed' | 'paused' | 'cancelled'>().default('active').notNull(),
-  priority: text('priority').$type<'low' | 'medium' | 'high' | 'urgent'>().default('medium').notNull(),
-  startDate: text('start_date'),
-  endDate: text('end_date'),
-  colorCode: text('color_code'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  status: varchar('status', { length: 20 }).$type<'active' | 'completed' | 'paused' | 'cancelled'>().default('active').notNull(),
+  priority: varchar('priority', { length: 10 }).$type<'low' | 'medium' | 'high' | 'urgent'>().default('medium').notNull(),
+  startDate: varchar('start_date', { length: 50 }),
+  endDate: varchar('end_date', { length: 50 }),
+  colorCode: varchar('color_code', { length: 20 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ PROJECT MEMBERS ============
-export const projectMembers = sqliteTable('project_members', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  projectId: integer('project_id').notNull().references(() => projects.id),
-  userId: integer('user_id').notNull().references(() => users.id),
-  role: text('role').$type<'admin' | 'member' | 'viewer'>().default('member').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+export const projectMembers = mysqlTable('project_members', {
+  id: int('id').primaryKey().autoincrement(),
+  projectId: int('project_id').notNull().references(() => projects.id),
+  userId: int('user_id').notNull().references(() => users.id),
+  role: varchar('role', { length: 10 }).$type<'admin' | 'member' | 'viewer'>().default('member').notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ BOARDS ============
-export const boards = sqliteTable('boards', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  projectId: integer('project_id').notNull().references(() => projects.id),
-  title: text('title').notNull(),
-  position: integer('position').default(0).notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+export const boards = mysqlTable('boards', {
+  id: int('id').primaryKey().autoincrement(),
+  projectId: int('project_id').notNull().references(() => projects.id),
+  title: varchar('title', { length: 255 }).notNull(),
+  position: int('position').default(0).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ CARDS ============
-export const cards = sqliteTable('cards', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  boardId: integer('board_id').notNull().references(() => boards.id),
-  title: text('title').notNull(),
+export const cards = mysqlTable('cards', {
+  id: int('id').primaryKey().autoincrement(),
+  boardId: int('board_id').notNull().references(() => boards.id),
+  title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
-  position: integer('position').default(0).notNull(),
-  priority: text('priority').$type<'low' | 'medium' | 'high' | 'urgent'>().default('medium').notNull(),
-  startDate: text('start_date'),
-  dueDate: text('due_date'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  completedAt: text('completed_at'),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  position: int('position').default(0).notNull(),
+  priority: varchar('priority', { length: 10 }).$type<'low' | 'medium' | 'high' | 'urgent'>().default('medium').notNull(),
+  startDate: varchar('start_date', { length: 50 }),
+  dueDate: varchar('due_date', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  completedAt: varchar('completed_at', { length: 50 }),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ CARD ASSIGNEES ============
-export const cardAssignees = sqliteTable('card_assignees', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  cardId: integer('card_id').notNull().references(() => cards.id),
-  userId: integer('user_id').notNull().references(() => users.id),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+export const cardAssignees = mysqlTable('card_assignees', {
+  id: int('id').primaryKey().autoincrement(),
+  cardId: int('card_id').notNull().references(() => cards.id),
+  userId: int('user_id').notNull().references(() => users.id),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ CLIENT PROJECTS ============
-export const clientProjects = sqliteTable('client_projects', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  clientId: integer('client_id').notNull().references(() => clients.id),
-  projectId: integer('project_id').notNull().references(() => projects.id),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+export const clientProjects = mysqlTable('client_projects', {
+  id: int('id').primaryKey().autoincrement(),
+  clientId: int('client_id').notNull().references(() => clients.id),
+  projectId: int('project_id').notNull().references(() => projects.id),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ PROJECT FILES ============
-export const projectFiles = sqliteTable('project_files', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  projectId: integer('project_id').notNull().references(() => projects.id),
-  messageId: integer('message_id'),
-  uploadedById: integer('uploaded_by_id').references(() => users.id),
-  uploadedByClientId: integer('uploaded_by_client_id').references(() => clients.id),
-  name: text('name').notNull(),
-  url: text('url').notNull(),
-  mimeType: text('mime_type'),
-  size: integer('size'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+export const projectFiles = mysqlTable('project_files', {
+  id: int('id').primaryKey().autoincrement(),
+  projectId: int('project_id').notNull().references(() => projects.id),
+  messageId: int('message_id'),
+  uploadedById: int('uploaded_by_id').references(() => users.id),
+  uploadedByClientId: int('uploaded_by_client_id').references(() => clients.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  url: varchar('url', { length: 512 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }),
+  size: int('size'),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 // ============ PROJECT MESSAGES ============
-export const projectMessages = sqliteTable('project_messages', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  projectId: integer('project_id').notNull().references(() => projects.id),
-  userId: integer('user_id').references(() => users.id),
-  clientId: integer('client_id').references(() => clients.id),
+export const projectMessages = mysqlTable('project_messages', {
+  id: int('id').primaryKey().autoincrement(),
+  projectId: int('project_id').notNull().references(() => projects.id),
+  userId: int('user_id').references(() => users.id),
+  clientId: int('client_id').references(() => clients.id),
   content: text('content').notNull(),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  replyToId: integer('reply_to_id'),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  replyToId: int('reply_to_id'),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ CALENDAR EVENTS ============
-export const calendarEvents = sqliteTable('calendar_events', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').notNull().references(() => companies.id),
-  userId: integer('user_id').references(() => users.id),
-  projectId: integer('project_id').references(() => projects.id),
-  title: text('title').notNull(),
+export const calendarEvents = mysqlTable('calendar_events', {
+  id: int('id').primaryKey().autoincrement(),
+  companyId: int('company_id').notNull().references(() => companies.id),
+  userId: int('user_id').references(() => users.id),
+  projectId: int('project_id').references(() => projects.id),
+  title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
-  type: text('type').$type<'event' | 'reminder' | 'task' | 'meeting'>().default('event').notNull(),
-  allDay: integer('all_day', { mode: 'boolean' }).default(false).notNull(),
-  startAt: text('start_at').notNull(),
-  endAt: text('end_at'),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
-  softDelete: integer('soft_delete', { mode: 'boolean' }).default(false).notNull(),
+  type: varchar('type', { length: 20 }).$type<'event' | 'reminder' | 'task' | 'meeting'>().default('event').notNull(),
+  allDay: boolean('all_day').default(false).notNull(),
+  startAt: varchar('start_at', { length: 50 }).notNull(),
+  endAt: varchar('end_at', { length: 50 }),
+  createdAt: varchar('created_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: varchar('updated_at', { length: 50 }).notNull().$defaultFn(() => new Date().toISOString()),
+  softDelete: boolean('soft_delete').default(false).notNull(),
 });
 
 // ============ RELATIONS ============

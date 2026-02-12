@@ -11,17 +11,17 @@ export async function GET(request: NextRequest) {
     try {
       const { companyId, userId } = authInfo;
       const searchParams = request.nextUrl.searchParams;
-      
+
       const startDate = searchParams.get('start');
       const endDate = searchParams.get('end');
       const projectId = searchParams.get('projectId');
-      
+
       // Build conditions
       let conditions = and(
         eq(calendarEvents.companyId, companyId),
         eq(calendarEvents.softDelete, false)
       );
-      
+
       // Date range filter
       if (startDate) {
         // Ensure we compare with ISO strings
@@ -30,19 +30,19 @@ export async function GET(request: NextRequest) {
       if (endDate) {
         conditions = and(conditions, lte(calendarEvents.startAt, new Date(endDate).toISOString()));
       }
-      
+
       // Project filter
       if (projectId) {
         conditions = and(conditions, eq(calendarEvents.projectId, parseInt(projectId)));
       }
-      
+
       // Get calendar events
       const events = await db
         .select()
         .from(calendarEvents)
         .where(conditions)
         .orderBy(calendarEvents.startAt);
-      
+
       // Also get card due dates as events (if date range provided)
       let cardEvents: any[] = [];
       if (startDate && endDate) {
@@ -51,18 +51,18 @@ export async function GET(request: NextRequest) {
           .select({ id: projects.id, title: projects.title, colorCode: projects.colorCode })
           .from(projects)
           .where(and(eq(projects.companyId, companyId), eq(projects.softDelete, false)));
-        
+
         const projectIds = companyProjects.map(p => p.id);
-        
+
         if (projectIds.length > 0) {
           // Get boards for these projects
           const projectBoards = await db
             .select()
             .from(boards)
             .where(or(...projectIds.map(pId => eq(boards.projectId, pId))));
-          
+
           const boardIds = projectBoards.map(b => b.id);
-          
+
           if (boardIds.length > 0) {
             // Get cards with due dates in range
             const cardsWithDueDates = await db
@@ -74,12 +74,12 @@ export async function GET(request: NextRequest) {
                 gte(cards.dueDate, new Date(startDate).toISOString()),
                 lte(cards.dueDate, new Date(endDate).toISOString())
               ));
-            
+
             // Map cards to event-like objects
             cardEvents = cardsWithDueDates.map(card => {
               const board = projectBoards.find(b => b.id === card.boardId);
               const project = companyProjects.find(p => p.id === board?.projectId);
-              
+
               return {
                 id: `card-${card.id}`,
                 title: card.title,
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-      
+
       return NextResponse.json({
         events,
         cardDueDates: cardEvents,
@@ -116,29 +116,29 @@ export async function POST(request: NextRequest) {
     try {
       const { companyId, userId } = authInfo;
       const body = await request.json();
-      
+
       // Validate
       const validation = calendarEventSchema.safeParse(body);
       if (!validation.success) {
         return NextResponse.json({ message: 'Validation failed', errors: validation.error.format() }, { status: 400 });
       }
-      
+
       const { title, description, type, allDay, startAt, endAt, projectId } = validation.data;
-      
+
       // If projectId provided, verify it exists
       if (projectId) {
         const [project] = await db
           .select()
           .from(projects)
           .where(and(eq(projects.id, projectId), eq(projects.companyId, companyId), eq(projects.softDelete, false)));
-        
+
         if (!project) {
           return NextResponse.json({ message: 'Project not found' }, { status: 404 });
         }
       }
-      
+
       // Create event
-      const [newEvent] = await db
+      const [insertResult] = await db
         .insert(calendarEvents)
         .values({
           companyId,
@@ -153,9 +153,10 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newEvent] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, insertResult.insertId));
+
       return NextResponse.json(newEvent, { status: 201 });
     } catch (error) {
       console.error('Error creating calendar event:', error);

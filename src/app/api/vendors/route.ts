@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       const { companyId } = authInfo;
       const url = new URL(req.url);
       const search = url.searchParams.get('search') || '';
-      
+
       const vendorsList = await db.select().from(vendors).where(
         and(
           eq(vendors.companyId, companyId),
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
           search ? like(vendors.name, `%${search}%`) : undefined
         )
       ).orderBy(desc(vendors.updatedAt));
-      
+
       return NextResponse.json({
         data: vendorsList,
         count: vendorsList.length,
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     try {
       const { companyId } = authInfo;
       const data = await req.json();
-      
+
       // Validate required fields
       if (!data.name) {
         return NextResponse.json(
@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      
-      const newVendor = await db.insert(vendors)
+
+      const [result] = await db.insert(vendors)
         .values({
           companyId: companyId,
           name: data.name,
@@ -78,11 +78,12 @@ export async function POST(req: NextRequest) {
           address: data.address || null,
           website: data.website || null,
           notes: data.notes || null,
-        })
-        .returning();
-      
+        });
+
+      const [newVendor] = await db.select().from(vendors).where(eq(vendors.id, result.insertId));
+
       return NextResponse.json(
-        { message: 'Vendor created successfully', data: newVendor[0] },
+        { message: 'Vendor created successfully', data: newVendor },
         { status: 201 }
       );
     } catch (error) {

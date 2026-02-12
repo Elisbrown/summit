@@ -56,15 +56,15 @@ export async function GET(request: NextRequest) {
       const sortOrder = searchParams.get('sortOrder') || 'desc';
       const status = searchParams.get('status');
       const search = searchParams.get('search') || '';
-      
+
       const offset = (page - 1) * limit;
-      
+
       // Build the base conditions
       let conditions = and(
         eq(quotes.companyId, companyId),
         eq(quotes.softDelete, false)
       );
-      
+
       // Add status filter if provided
       if (status && status !== 'all') {
         if (['draft', 'sent', 'accepted', 'rejected', 'expired'].includes(status)) {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      
+
       // Add search filter
       if (search) {
         conditions = and(
@@ -85,16 +85,16 @@ export async function GET(request: NextRequest) {
           )
         );
       }
-      
+
       // Count total records for pagination
       const totalCountResult = await db
         .select({ count: count() })
         .from(quotes)
         .leftJoin(clients, eq(quotes.clientId, clients.id))
         .where(conditions);
-      
+
       const totalCount = Number(totalCountResult[0]?.count || 0);
-      
+
       // Execute the query with sorting, limit and offset
       const quoteResults = await db
         .select({
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
         )
         .limit(limit)
         .offset(offset);
-      
+
       if (quoteResults.length === 0) {
         return NextResponse.json({
           data: [],
@@ -125,37 +125,37 @@ export async function GET(request: NextRequest) {
           totalPages: 0,
         });
       }
-      
+
       // Get all quote IDs
       const quoteIds = quoteResults.map(result => result.quote.id);
-      
+
       // Get items for all quotes
       const items = await db
         .select()
         .from(quoteItems)
         .where(inArray(quoteItems.quoteId, quoteIds));
-      
+
       // Get company information
       const company = await db
         .select()
         .from(companies)
         .where(eq(companies.id, companyId))
         .limit(1);
-      
+
       // Group items by quote ID
       const itemsByQuoteId: Record<number, any[]> = {};
-      
+
       for (const item of items) {
         if (!itemsByQuoteId[item.quoteId]) {
           itemsByQuoteId[item.quoteId] = [];
         }
         itemsByQuoteId[item.quoteId].push(item);
       }
-      
+
       // Format quote results
       const formattedQuotes = quoteResults.map(result => {
         const { quote, client } = result;
-        
+
         return {
           ...quote,
           client,
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
           items: itemsByQuoteId[quote.id] || [],
         };
       });
-      
+
       return NextResponse.json({
         data: formattedQuotes,
         total: totalCount,
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
         limit,
         totalPages: Math.ceil(totalCount / limit),
       });
-      
+
     } catch (error) {
       console.error('Error fetching quotes:', error);
       return NextResponse.json(
@@ -187,21 +187,21 @@ export async function POST(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       const body = await request.json();
-      
+
       // Validate input data
       const validationResult = quoteSchema.safeParse(body);
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: validationResult.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { clientId, quoteNumber, status, issueDate, expiryDate, taxRate: taxRateInput, notes, items } = validationResult.data;
-      
+
       // Check if client exists and belongs to the company
       const existingClient = await db
         .select()
@@ -214,14 +214,14 @@ export async function POST(request: NextRequest) {
           )
         )
         .limit(1);
-      
+
       if (existingClient.length === 0) {
         return NextResponse.json(
           { message: 'Client not found or does not belong to your company' },
           { status: 404 }
         );
       }
-      
+
       // Check if quote number already exists for this company
       const existingQuote = await db
         .select()
@@ -234,14 +234,14 @@ export async function POST(request: NextRequest) {
           )
         )
         .limit(1);
-      
+
       if (existingQuote.length > 0) {
         return NextResponse.json(
           { message: 'Quote number already exists' },
           { status: 400 }
         );
       }
-      
+
       // Calculate subtotal, tax and total
       const subtotal = items.reduce((sum, item) => {
         const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
@@ -251,10 +251,10 @@ export async function POST(request: NextRequest) {
       const taxRate = typeof taxRateInput === 'string' ? parseFloat(taxRateInput) : (taxRateInput || 0);
       const taxAmount = taxRate ? subtotal * (taxRate / 100) : 0;
       const total = subtotal + taxAmount;
-      
+
       // Insert quote using a simple query approach
       const now = new Date();
-      
+
       // Create raw SQL statement to insert quote
       const newQuote: typeof quotes.$inferInsert = {
         companyId,
@@ -272,12 +272,14 @@ export async function POST(request: NextRequest) {
         updatedAt: now.toISOString(),
         softDelete: false
       };
-      
-      const quoteResult = await db.insert(quotes).values(newQuote).returning();
-      
+
+      const [quoteInsertResult] = await db.insert(quotes).values(newQuote);
+      const [createdQuote] = await db.select().from(quotes).where(eq(quotes.id, quoteInsertResult.insertId));
+      const quoteResult = [createdQuote]; // Maintain array structure for compatibility with existing code
+
       // Create quote items
       const createdItems = [];
-      
+
       for (const item of items) {
         // Calculate amount server-side regardless of what client sent
         const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
@@ -291,14 +293,15 @@ export async function POST(request: NextRequest) {
           unitPrice: unitPrice.toString(),
           amount: amount.toString(),
         };
-        
-        const itemResult = await db.insert(quoteItems).values(newItem).returning();
-        createdItems.push(itemResult[0]);
+
+        const [itemInsertResult] = await db.insert(quoteItems).values(newItem);
+        const [createdItem] = await db.select().from(quoteItems).where(eq(quoteItems.id, itemInsertResult.insertId));
+        createdItems.push(createdItem);
       }
-      
+
       // Format response
       const client = existingClient[0];
-      
+
       return NextResponse.json({
         id: quoteResult[0].id,
         companyId: quoteResult[0].companyId,
@@ -326,17 +329,17 @@ export async function POST(request: NextRequest) {
           amount: item.amount,
         })),
       });
-      
+
     } catch (error) {
       console.error('Error creating quote:', error);
-      
+
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { message: 'Validation error', errors: error.errors },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
         { message: 'Internal server error' },
         { status: 500 }

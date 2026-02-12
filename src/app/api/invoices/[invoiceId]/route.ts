@@ -144,7 +144,7 @@ export async function PUT(
 
       // Calculate values based on items, ignoring any client-provided values
       const subtotal = validatedData.items.reduce(
-        (sum, item) => sum + item.quantity * parseFloat(item.unitPrice.toString()), 
+        (sum, item) => sum + item.quantity * parseFloat(item.unitPrice.toString()),
         0
       );
       // Ensure tax is a percentage between 0-100, not a multiplier
@@ -159,7 +159,8 @@ export async function PUT(
       const wasPaid = existingInvoice[0].status === 'paid';
 
       // Update invoice
-      const [updatedInvoice] = await db
+      // Update invoice
+      await db
         .update(invoices)
         .set({
           clientId: validatedData.clientId,
@@ -183,8 +184,9 @@ export async function PUT(
             eq(invoices.id, id),
             eq(invoices.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      const [updatedInvoice] = await db.select().from(invoices).where(eq(invoices.id, id));
 
       // Delete existing items
       await db
@@ -195,7 +197,7 @@ export async function PUT(
       const itemsToInsert = validatedData.items.map((item) => {
         // Calculate amount server-side regardless of what client sent
         const amount = item.quantity * parseFloat(item.unitPrice.toString());
-        
+
         return {
           invoiceId: id,
           description: item.description,
@@ -207,18 +209,19 @@ export async function PUT(
         };
       });
 
-      const items = await db
-        .insert(invoiceItems)
-        .values(itemsToInsert)
-        .returning();
+      if (itemsToInsert.length > 0) {
+        await db.insert(invoiceItems).values(itemsToInsert);
+      }
+
+      const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
 
       // --- INCOME RECORD MANAGEMENT ---
       if (isPaid && !wasPaid) {
         // Invoice just marked as paid - Create income record
-        
+
         // Import income table lazily or at top if not imported
         const { income } = await import('@/lib/db/schema');
-        
+
         await db.insert(income).values({
           companyId,
           clientId: validatedData.clientId,
@@ -236,7 +239,7 @@ export async function PUT(
       } else if (!isPaid && wasPaid) {
         // Invoice was paid, now it's not (e.g., marked as unpaid/draft) - Delete associated income
         const { income } = await import('@/lib/db/schema');
-        
+
         await db
           .delete(income)
           .where(
@@ -246,20 +249,20 @@ export async function PUT(
             )
           );
       } else if (isPaid && wasPaid && existingInvoice[0].total !== total.toString()) {
-          // Amount changed but still paid - Update income record
-          const { income } = await import('@/lib/db/schema');
-          await db
-              .update(income)
-              .set({
-                  amount: total.toString(),
-                  updatedAt: new Date().toISOString(),
-              })
-              .where(
-                  and(
-                      eq(income.invoiceId, id),
-                      eq(income.companyId, companyId)
-                  )
-              );
+        // Amount changed but still paid - Update income record
+        const { income } = await import('@/lib/db/schema');
+        await db
+          .update(income)
+          .set({
+            amount: total.toString(),
+            updatedAt: new Date().toISOString(),
+          })
+          .where(
+            and(
+              eq(income.invoiceId, id),
+              eq(income.companyId, companyId)
+            )
+          );
       }
 
       return NextResponse.json({ ...updatedInvoice, items });
@@ -311,7 +314,8 @@ export async function DELETE(
       }
 
       // Soft delete invoice
-      const [deletedInvoice] = await db
+      // Soft delete invoice
+      await db
         .update(invoices)
         .set({
           softDelete: true,
@@ -322,8 +326,9 @@ export async function DELETE(
             eq(invoices.id, id),
             eq(invoices.companyId, companyId)
           )
-        )
-        .returning();
+        );
+
+      const [deletedInvoice] = await db.select().from(invoices).where(eq(invoices.id, id));
 
       return NextResponse.json({ message: 'Invoice deleted successfully' });
     } catch (error) {

@@ -20,37 +20,37 @@ export async function GET(
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '50');
       const offset = (page - 1) * limit;
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid project ID' }, { status: 400 });
       }
-      
+
       // Verify project
       const [project] = await db
         .select()
         .from(projects)
         .where(and(eq(projects.id, id), eq(projects.companyId, companyId), eq(projects.softDelete, false)));
-      
+
       if (!project) {
         return NextResponse.json({ message: 'Project not found' }, { status: 404 });
       }
-      
+
       // Check membership
       const [membership] = await db
         .select()
         .from(projectMembers)
         .where(and(eq(projectMembers.projectId, id), eq(projectMembers.userId, userId)));
-      
+
       if (!membership && authInfo.role !== 'admin') {
         return NextResponse.json({ message: 'Not a member of this project' }, { status: 403 });
       }
-      
+
       // Count total
       const [totalResult] = await db
         .select({ count: count() })
         .from(projectMessages)
         .where(and(eq(projectMessages.projectId, id), eq(projectMessages.softDelete, false)));
-      
+
       // Get messages with user AND client info
       const messages = await db
         .select({
@@ -76,7 +76,7 @@ export async function GET(
         .orderBy(desc(projectMessages.createdAt))
         .limit(limit)
         .offset(offset);
-      
+
       // Get files for each message and format
       const messagesWithFiles = await Promise.all(
         messages.map(async (msg) => {
@@ -84,7 +84,7 @@ export async function GET(
             .select()
             .from(projectFiles)
             .where(eq(projectFiles.messageId, msg.id));
-          
+
           // Get replyTo message if exists
           let replyTo = null;
           if (msg.replyToId) {
@@ -101,7 +101,7 @@ export async function GET(
               .leftJoin(users, eq(projectMessages.userId, users.id))
               .leftJoin(clients, eq(projectMessages.clientId, clients.id))
               .where(eq(projectMessages.id, msg.replyToId));
-            
+
             if (parent) {
               replyTo = {
                 id: parent.id,
@@ -112,11 +112,11 @@ export async function GET(
           }
 
           // Unify user/client into single "user" object for frontend
-          const unifiedUser = msg.userId 
-            ? msg.user 
+          const unifiedUser = msg.userId
+            ? msg.user
             : (msg.client ? { name: msg.client.name, email: msg.client.email } : { name: 'Unknown', email: '' });
 
-          return { 
+          return {
             id: msg.id,
             content: msg.content,
             createdAt: msg.createdAt,
@@ -124,12 +124,12 @@ export async function GET(
             clientId: msg.clientId,
             replyToId: msg.replyToId,
             user: unifiedUser,
-            files, 
-            replyTo 
+            files,
+            replyTo
           };
         })
       );
-      
+
       return NextResponse.json({
         data: messagesWithFiles,
         total: Number(totalResult.count),
@@ -155,45 +155,45 @@ export async function POST(
       const { companyId, userId } = authInfo;
       const id = parseInt(projectId);
       const body = await request.json();
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid project ID' }, { status: 400 });
       }
-      
+
       // Verify project
       const [project] = await db
         .select()
         .from(projects)
         .where(and(eq(projects.id, id), eq(projects.companyId, companyId), eq(projects.softDelete, false)));
-      
+
       if (!project) {
         return NextResponse.json({ message: 'Project not found' }, { status: 404 });
       }
-      
+
       // Check membership (non-viewers can message)
       const [membership] = await db
         .select()
         .from(projectMembers)
         .where(and(eq(projectMembers.projectId, id), eq(projectMembers.userId, userId)));
-      
+
       if (!membership && authInfo.role !== 'admin') {
         return NextResponse.json({ message: 'Not a member of this project' }, { status: 403 });
       }
-      
+
       // Validate
       const validation = projectMessageSchema.safeParse(body);
       if (!validation.success) {
         return NextResponse.json({ message: 'Validation failed', errors: validation.error.format() }, { status: 400 });
       }
-      
+
       const { content, fileIds } = validation.data;
-      
+
 
       const now = new Date();
       const timestamp = now.toISOString();
-      
+
       // Create message (sequential operations for SQLite compatibility)
-      const [newMessage] = await db
+      const [insertResult] = await db
         .insert(projectMessages)
         .values({
           projectId: id,
@@ -203,9 +203,10 @@ export async function POST(
           createdAt: timestamp,
           updatedAt: timestamp,
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newMessage] = await db.select().from(projectMessages).where(eq(projectMessages.id, insertResult.insertId));
+
       // Link files if provided
       if (fileIds && fileIds.length > 0) {
         for (const fileId of fileIds) {
@@ -215,15 +216,15 @@ export async function POST(
             .where(and(eq(projectFiles.id, fileId), eq(projectFiles.projectId, id)));
         }
       }
-      
+
       const result = newMessage;
-      
+
       // Get user info
       const [user] = await db
         .select({ name: users.name, email: users.email })
         .from(users)
         .where(eq(users.id, userId));
-      
+
       return NextResponse.json({ ...result, user }, { status: 201 });
     } catch (error) {
       console.error('Error sending message:', error);

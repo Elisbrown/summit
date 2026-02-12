@@ -30,14 +30,14 @@ export async function GET(
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
-      
+
       if (isNaN(Number(vendorId))) {
         return NextResponse.json(
           { error: 'Invalid vendor ID' },
           { status: 400 }
         );
       }
-      
+
       const vendor = await db.select().from(vendors).where(
         and(
           eq(vendors.id, Number(vendorId)),
@@ -45,14 +45,14 @@ export async function GET(
           eq(vendors.softDelete, false)
         )
       );
-      
+
       if (!vendor || vendor.length === 0) {
         return NextResponse.json(
           { error: 'Vendor not found' },
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json({ data: vendor[0] });
     } catch (error) {
       console.error('Error fetching vendor:', error);
@@ -73,16 +73,16 @@ export async function PUT(
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
-      
+
       if (isNaN(Number(vendorId))) {
         return NextResponse.json(
           { error: 'Invalid vendor ID' },
           { status: 400 }
         );
       }
-      
+
       const data = await req.json();
-      
+
       // Validate required fields
       if (!data.name) {
         return NextResponse.json(
@@ -90,7 +90,7 @@ export async function PUT(
           { status: 400 }
         );
       }
-      
+
       // Check if vendor exists and belongs to the company
       const existingVendor = await db.select().from(vendors).where(
         and(
@@ -99,15 +99,15 @@ export async function PUT(
           eq(vendors.softDelete, false)
         )
       );
-      
+
       if (!existingVendor || existingVendor.length === 0) {
         return NextResponse.json(
           { error: 'Vendor not found' },
           { status: 404 }
         );
       }
-      
-      const updatedVendor = await db.update(vendors)
+
+      await db.update(vendors)
         .set({
           name: data.name,
           contactName: data.contactName || null,
@@ -121,12 +121,13 @@ export async function PUT(
         .where(and(
           eq(vendors.id, Number(vendorId)),
           eq(vendors.companyId, companyId)
-        ))
-        .returning();
-      
+        ));
+
+      const [updatedVendor] = await db.select().from(vendors).where(eq(vendors.id, Number(vendorId)));
+
       return NextResponse.json({
         message: 'Vendor updated successfully',
-        data: updatedVendor[0],
+        data: updatedVendor,
       });
     } catch (error) {
       console.error('Error updating vendor:', error);
@@ -147,14 +148,14 @@ export async function DELETE(
     try {
       const { companyId } = authInfo;
       const { vendorId } = await params;
-      
+
       if (isNaN(Number(vendorId))) {
         return NextResponse.json(
           { error: 'Invalid vendor ID' },
           { status: 400 }
         );
       }
-      
+
       // Check if vendor exists and belongs to the company
       const existingVendor = await db.select().from(vendors).where(
         and(
@@ -163,14 +164,14 @@ export async function DELETE(
           eq(vendors.softDelete, false)
         )
       );
-      
+
       if (!existingVendor || existingVendor.length === 0) {
         return NextResponse.json(
           { error: 'Vendor not found' },
           { status: 404 }
         );
       }
-      
+
       // Soft delete the vendor
       await db.update(vendors)
         .set({
@@ -181,7 +182,7 @@ export async function DELETE(
           eq(vendors.id, Number(vendorId)),
           eq(vendors.companyId, companyId)
         ));
-      
+
       return NextResponse.json({
         message: 'Vendor deleted successfully',
       });

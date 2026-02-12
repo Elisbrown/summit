@@ -26,24 +26,24 @@ export async function GET(req: NextRequest) {
   return withAuth<any>(req, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Parse query parameters
       const { searchParams } = new URL(req.url);
       const page = parseInt(searchParams.get("page") || "1");
       const limit = parseInt(searchParams.get("limit") || "10");
       const offset = (page - 1) * limit;
-      
+
       // Filter parameters
       const categoryId = searchParams.get("categoryId");
       const startDate = searchParams.get("startDate");
       const endDate = searchParams.get("endDate");
-      
+
       // Base query conditions
       let conditions = and(
         eq(income.companyId, companyId),
         eq(income.softDelete, false)
       );
-      
+
       // Add filter conditions if provided
       if (categoryId) {
         conditions = and(
@@ -51,29 +51,29 @@ export async function GET(req: NextRequest) {
           eq(income.categoryId, parseInt(categoryId))
         );
       }
-      
+
       if (startDate) {
         conditions = and(
           conditions,
           sql`${income.incomeDate} >= ${new Date(startDate)}`
         );
       }
-      
+
       if (endDate) {
         conditions = and(
           conditions,
           sql`${income.incomeDate} <= ${new Date(endDate)}`
         );
       }
-      
+
       // Get total count
       const [countResult] = await db
         .select({ count: sql<number>`count(*)` })
         .from(income)
         .where(conditions);
-      
+
       const total = countResult.count;
-      
+
       // Get income entries with related data
       const incomeEntries = await db
         .select({
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         .orderBy(desc(income.incomeDate))
         .limit(limit)
         .offset(offset);
-      
+
       return NextResponse.json({
         data: incomeEntries,
         meta: {
@@ -114,17 +114,17 @@ export async function POST(req: NextRequest) {
     try {
       const { companyId } = authInfo;
       const body = await req.json();
-      
+
       // Validate request body
       const validatedData = incomeSchema.safeParse(body);
-      
+
       if (!validatedData.success) {
         return NextResponse.json(
           { error: validatedData.error.format() },
           { status: 400 }
         );
       }
-      
+
       const {
         categoryId,
         clientId,
@@ -137,16 +137,16 @@ export async function POST(req: NextRequest) {
         recurring,
         nextDueDate,
       } = validatedData.data;
-      
+
       // Calculate next due date for recurring income
       let calculatedNextDueDate = null;
       if (recurring !== "none") {
         calculatedNextDueDate = nextDueDate || calculateNextDueDate(incomeDate, recurring);
       }
-      
+
       // Create new income entry
       const now = new Date();
-      const [newIncome] = await db
+      const [newIncomeResult] = await db
         .insert(income)
         .values({
           companyId,
@@ -163,9 +163,11 @@ export async function POST(req: NextRequest) {
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const insertId = newIncomeResult.insertId;
+      const [newIncome] = await db.select().from(income).where(eq(income.id, insertId));
+
       return NextResponse.json(newIncome, { status: 201 });
     } catch (error) {
       console.error("Error creating income entry:", error);
@@ -180,7 +182,7 @@ export async function POST(req: NextRequest) {
 // Helper function to calculate next due date based on recurring type
 function calculateNextDueDate(currentDate: Date, recurring: string): Date {
   const nextDate = new Date(currentDate);
-  
+
   switch (recurring) {
     case "daily":
       nextDate.setDate(nextDate.getDate() + 1);
@@ -195,6 +197,6 @@ function calculateNextDueDate(currentDate: Date, recurring: string): Date {
       nextDate.setFullYear(nextDate.getFullYear() + 1);
       break;
   }
-  
+
   return nextDate;
 } 

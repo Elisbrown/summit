@@ -27,9 +27,9 @@ export async function GET(
       // Check project access (similar to other endpoints)
       const project = await db.query.projects.findFirst({
         where: and(
-            eq(projects.id, id),
-            eq(projects.companyId, companyId),
-            eq(projects.softDelete, false)
+          eq(projects.id, id),
+          eq(projects.companyId, companyId),
+          eq(projects.softDelete, false)
         )
       });
 
@@ -39,27 +39,27 @@ export async function GET(
 
       // Check membership if not admin
       if (role !== 'admin') {
-         const member = await db.query.projectMembers.findFirst({
-            where: and(
-                eq(projectMembers.projectId, id),
-                eq(projectMembers.userId, userId)
-            )
-         });
-         if (!member) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-         }
+        const member = await db.query.projectMembers.findFirst({
+          where: and(
+            eq(projectMembers.projectId, id),
+            eq(projectMembers.userId, userId)
+          )
+        });
+        if (!member) {
+          return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+        }
       }
 
       const files = await db.query.projectFiles.findMany({
         where: eq(projectFiles.projectId, id),
         orderBy: [desc(projectFiles.createdAt)],
         with: {
-            uploadedBy: {
-                columns: {
-                    id: true,
-                    name: true,
-                }
+          uploadedBy: {
+            columns: {
+              id: true,
+              name: true,
             }
+          }
         }
       });
 
@@ -90,9 +90,9 @@ export async function POST(
       // Permission check
       const project = await db.query.projects.findFirst({
         where: and(
-            eq(projects.id, id),
-            eq(projects.companyId, companyId),
-            eq(projects.softDelete, false)
+          eq(projects.id, id),
+          eq(projects.companyId, companyId),
+          eq(projects.softDelete, false)
         )
       });
 
@@ -103,20 +103,20 @@ export async function POST(
       // Check membership (must be admin or member, maybe viewer shouldn't upload?)
       let canUpload = role === 'admin';
       if (!canUpload) {
-         const member = await db.query.projectMembers.findFirst({
-            where: and(
-                eq(projectMembers.projectId, id),
-                eq(projectMembers.userId, userId)
-            )
-         });
-         // Don't allow viewers to upload? Assuming members can.
-         if (member && member.role !== 'viewer') {
-            canUpload = true;
-         }
+        const member = await db.query.projectMembers.findFirst({
+          where: and(
+            eq(projectMembers.projectId, id),
+            eq(projectMembers.userId, userId)
+          )
+        });
+        // Don't allow viewers to upload? Assuming members can.
+        if (member && member.role !== 'viewer') {
+          canUpload = true;
+        }
       }
 
       if (!canUpload) {
-         return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
       }
 
       const formData = await request.formData();
@@ -128,8 +128,8 @@ export async function POST(
 
       // Validate file size (100MB limit)
       if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json({ 
-          message: `File size exceeds the 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.` 
+        return NextResponse.json({
+          message: `File size exceeds the 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.`
         }, { status: 400 });
       }
 
@@ -137,7 +137,7 @@ export async function POST(
       const timestamp = Date.now();
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${timestamp}-${sanitizedName}`;
-      
+
       // Ensure directory exists
       const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'projects', projectId);
       if (!existsSync(uploadDir)) {
@@ -149,7 +149,7 @@ export async function POST(
 
       const fileUrl = `/uploads/projects/${projectId}/${fileName}`;
 
-      const [newFile] = await db.insert(projectFiles).values({
+      const [result] = await db.insert(projectFiles).values({
         projectId: id,
         uploadedById: userId,
         name: file.name,
@@ -157,14 +157,16 @@ export async function POST(
         mimeType: file.type,
         size: file.size,
         createdAt: new Date().toISOString()
-      }).returning();
+      });
+
+      const [newFile] = await db.select().from(projectFiles).where(eq(projectFiles.id, result.insertId));
 
       // Return file with uploadedBy info for UI
       return NextResponse.json({
         ...newFile,
         uploadedBy: {
-            id: userId,
-            name: 'Unknown' // Ideally get from session or query
+          id: userId,
+          name: 'Unknown' // Ideally get from session or query
         }
       }, { status: 201 });
 

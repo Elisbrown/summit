@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Parse and validate query parameters
       const searchParams = request.nextUrl.searchParams;
       const queryValidation = accountQuerySchema.safeParse({
@@ -19,28 +19,28 @@ export async function GET(request: NextRequest) {
         type: searchParams.get('type') || undefined,
         search: searchParams.get('search') || undefined,
       });
-      
+
       if (!queryValidation.success) {
         return NextResponse.json(
           { message: 'Invalid query parameters', errors: queryValidation.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { page, limit, type, search } = queryValidation.data;
       const offset = (page - 1) * limit;
-      
+
       // Build query conditions
       let conditions = and(
         eq(accounts.companyId, companyId),
         eq(accounts.softDelete, false)
       );
-      
+
       // Add type filter if provided and not 'all'
       if (type && type !== 'all') {
         conditions = and(conditions, eq(accounts.type, type));
       }
-      
+
       // Add search filter if provided
       if (search) {
         conditions = and(
@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
           like(accounts.name, `%${search}%`)
         );
       }
-      
+
       // Count total matching accounts
       const [{ value: total }] = await db
         .select({ value: count() })
         .from(accounts)
         .where(conditions);
-      
+
       // Retrieve accounts with pagination
       const accountsList = await db
         .select()
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         .orderBy(desc(accounts.createdAt))
         .limit(limit)
         .offset(offset);
-      
+
       return NextResponse.json({
         data: accountsList,
         meta: {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / limit),
         },
       });
-      
+
     } catch (error) {
       console.error('Error fetching accounts:', error);
       return NextResponse.json(
@@ -89,22 +89,22 @@ export async function POST(request: NextRequest) {
   return withAuth(request, async (authInfo): Promise<NextResponse<any>> => {
     try {
       const { companyId } = authInfo;
-      
+
       // Parse and validate request body
       const body = await request.json();
       const validation = accountSchema.safeParse(body);
-      
+
       if (!validation.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: validation.error.format() },
           { status: 400 }
         );
       }
-      
+
       const { name, type, currency, accountNumber, initialBalance } = validation.data;
-      
+
       // Create new account
-      const [newAccount] = await db
+      const [insertResult] = await db
         .insert(accounts)
         .values({
           companyId,
@@ -117,11 +117,12 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           softDelete: false,
-        })
-        .returning();
-      
+        });
+
+      const [newAccount] = await db.select().from(accounts).where(eq(accounts.id, insertResult.insertId));
+
       return NextResponse.json(newAccount, { status: 201 });
-      
+
     } catch (error) {
       console.error('Error creating account:', error);
       return NextResponse.json(

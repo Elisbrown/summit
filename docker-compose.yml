@@ -1,0 +1,56 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: summit-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: sigalix
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: summit-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - DATABASE_URL=mysql://root:password@mysql:3306/sigalix
+      - NEXT_PUBLIC_URL=http://localhost:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: summit-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mysql://root:password@mysql:3306/sigalix
+      - NEXT_PUBLIC_URL=http://localhost:3000
+      - NODE_ENV=production
+    env_file:
+      - .env.example # Using example for demo, typically users should create .env.production
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  mysql-data:

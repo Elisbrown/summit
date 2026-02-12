@@ -15,11 +15,11 @@ export async function GET(
       const { projectId } = await params;
       const { companyId, userId } = authInfo;
       const id = parseInt(projectId);
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid project ID' }, { status: 400 });
       }
-      
+
       // Get project
       const [project] = await db
         .select()
@@ -29,11 +29,11 @@ export async function GET(
           eq(projects.companyId, companyId),
           eq(projects.softDelete, false)
         ));
-      
+
       if (!project) {
         return NextResponse.json({ message: 'Project not found' }, { status: 404 });
       }
-      
+
       // Check membership (or admin access)
       const [membership] = await db
         .select()
@@ -42,7 +42,7 @@ export async function GET(
           eq(projectMembers.projectId, id),
           eq(projectMembers.userId, userId)
         ));
-      
+
       // Get members with user info
       const members = await db
         .select({
@@ -58,14 +58,14 @@ export async function GET(
         .from(projectMembers)
         .leftJoin(users, eq(projectMembers.userId, users.id))
         .where(eq(projectMembers.projectId, id));
-      
+
       // Get boards with cards
       const projectBoards = await db
         .select()
         .from(boards)
         .where(eq(boards.projectId, id))
         .orderBy(boards.position);
-      
+
       const boardsWithCards = await Promise.all(
         projectBoards.map(async (board) => {
           const boardCards = await db
@@ -73,11 +73,11 @@ export async function GET(
             .from(cards)
             .where(and(eq(cards.boardId, board.id), eq(cards.softDelete, false)))
             .orderBy(cards.position);
-          
+
           return { ...board, cards: boardCards };
         })
       );
-      
+
       // Get linked clients
       const linkedClients = await db
         .select({
@@ -88,7 +88,7 @@ export async function GET(
         .from(clientProjects)
         .leftJoin(clients, eq(clientProjects.clientId, clients.id))
         .where(eq(clientProjects.projectId, id));
-      
+
       return NextResponse.json({
         ...project,
         members,
@@ -114,11 +114,11 @@ export async function PUT(
       const { companyId, userId } = authInfo;
       const id = parseInt(projectId);
       const body = await request.json();
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid project ID' }, { status: 400 });
       }
-      
+
       // Get project
       const [project] = await db
         .select()
@@ -128,11 +128,11 @@ export async function PUT(
           eq(projects.companyId, companyId),
           eq(projects.softDelete, false)
         ));
-      
+
       if (!project) {
         return NextResponse.json({ message: 'Project not found' }, { status: 404 });
       }
-      
+
       // Check if user is admin
       const [membership] = await db
         .select()
@@ -142,13 +142,13 @@ export async function PUT(
           eq(projectMembers.userId, userId),
           eq(projectMembers.role, 'admin')
         ));
-      
+
       const isCompanyAdmin = authInfo.role === 'admin';
-      
+
       if (!membership && !isCompanyAdmin) {
         return NextResponse.json({ message: 'Only admins can update the project' }, { status: 403 });
       }
-      
+
       // Validate
       const validation = projectSchema.partial().safeParse(body);
       if (!validation.success) {
@@ -157,9 +157,9 @@ export async function PUT(
           { status: 400 }
         );
       }
-      
+
       const { title, description, status, priority, startDate, endDate, colorCode } = validation.data;
-      
+
       // Update
       const [updated] = await db
         .update(projects)
@@ -173,9 +173,10 @@ export async function PUT(
           ...(colorCode !== undefined && { colorCode }),
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(projects.id, id))
-        .returning();
-      
+        .where(eq(projects.id, id));
+
+      const [updated] = await db.select().from(projects).where(eq(projects.id, id));
+
       return NextResponse.json(updated);
     } catch (error) {
       console.error('Error updating project:', error);
@@ -194,11 +195,11 @@ export async function DELETE(
       const { projectId } = await params;
       const { companyId, userId } = authInfo;
       const id = parseInt(projectId);
-      
+
       if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid project ID' }, { status: 400 });
       }
-      
+
       // Get project
       const [project] = await db
         .select()
@@ -208,11 +209,11 @@ export async function DELETE(
           eq(projects.companyId, companyId),
           eq(projects.softDelete, false)
         ));
-      
+
       if (!project) {
         return NextResponse.json({ message: 'Project not found' }, { status: 404 });
       }
-      
+
       // Check if user is admin
       const [membership] = await db
         .select()
@@ -222,17 +223,17 @@ export async function DELETE(
           eq(projectMembers.userId, userId),
           eq(projectMembers.role, 'admin')
         ));
-      
+
       if (!membership) {
         return NextResponse.json({ message: 'Only admins can delete the project' }, { status: 403 });
       }
-      
+
       // Soft delete
       await db
         .update(projects)
         .set({ softDelete: true, updatedAt: new Date().toISOString() })
         .where(eq(projects.id, id));
-      
+
       return NextResponse.json({ message: 'Project deleted' });
     } catch (error) {
       console.error('Error deleting project:', error);

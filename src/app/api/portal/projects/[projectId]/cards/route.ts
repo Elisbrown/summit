@@ -61,7 +61,7 @@ export async function POST(
     }
 
     // Create card
-    const [newCard] = await db
+    const [insertResult] = await db
       .insert(cards)
       .values({
         boardId,
@@ -74,8 +74,9 @@ export async function POST(
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         softDelete: false,
-      })
-      .returning();
+      });
+
+    const [newCard] = await db.select().from(cards).where(eq(cards.id, insertResult.insertId));
 
     return NextResponse.json(newCard, { status: 201 });
   } catch (error) {

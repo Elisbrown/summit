@@ -38,10 +38,10 @@ export async function GET(
         size: projectFiles.size,
         createdAt: projectFiles.createdAt,
         uploadedByUser: {
-           name: users.name,
+          name: users.name,
         },
         uploadedByClient: {
-           name: clients.name,
+          name: clients.name,
         }
       })
       .from(projectFiles)
@@ -51,8 +51,8 @@ export async function GET(
       .orderBy(desc(projectFiles.createdAt));
 
     const formatted = files.map(f => ({
-        ...f,
-        uploadedBy: f.uploadedByUser?.name || f.uploadedByClient?.name || 'Unknown',
+      ...f,
+      uploadedBy: f.uploadedByUser?.name || f.uploadedByClient?.name || 'Unknown',
     }));
 
     return NextResponse.json({ data: formatted });
@@ -99,8 +99,8 @@ export async function POST(
 
     // Validate file size (100MB limit)
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        message: `File size exceeds the 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.` 
+      return NextResponse.json({
+        message: `File size exceeds the 100MB limit. Your file is ${Math.round(file.size / 1024 / 1024)}MB.`
       }, { status: 400 });
     }
 
@@ -108,7 +108,7 @@ export async function POST(
     const timestamp = Date.now();
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${timestamp}-${sanitizedName}`;
-    
+
     // Ensure directory exists
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'projects', projectId);
     if (!existsSync(uploadDir)) {
@@ -126,7 +126,7 @@ export async function POST(
       .from(clients)
       .where(eq(clients.id, session.clientId));
 
-    const [newFile] = await db.insert(projectFiles).values({
+    const [insertResult] = await db.insert(projectFiles).values({
       projectId: id,
       uploadedByClientId: session.clientId,
       name: file.name,
@@ -134,7 +134,9 @@ export async function POST(
       mimeType: file.type,
       size: file.size,
       createdAt: new Date().toISOString()
-    }).returning();
+    });
+
+    const [newFile] = await db.select().from(projectFiles).where(eq(projectFiles.id, insertResult.insertId));
 
     return NextResponse.json({
       ...newFile,

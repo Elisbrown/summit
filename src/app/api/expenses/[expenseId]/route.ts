@@ -36,26 +36,26 @@ type ErrorResponse = {
 
 // GET /api/expenses/[expenseId] - Get a specific expense
 export async function GET(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Validate and parse the expense ID
       const { expenseId } = await params;
       const validationResult = expenseParamsSchema.safeParse({ expenseId });
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Invalid expense ID' },
           { status: 400 }
         );
       }
-      
+
       const id = parseInt(expenseId);
-      
+
       // Get the expense with its category
       const expenseResult = await db
         .select({
@@ -75,25 +75,25 @@ export async function GET(
           )
         )
         .limit(1);
-      
+
       if (expenseResult.length === 0) {
         return NextResponse.json(
           { message: 'Expense not found' },
           { status: 404 }
         );
       }
-      
+
       // Get vendor information if vendorId is provided
       const { expense, category } = expenseResult[0];
       let vendorInfo = null;
-      
+
       if (expense.vendorId) {
         const vendorResult = await db
           .select()
           .from(vendors)
           .where(eq(vendors.id, expense.vendorId))
           .limit(1);
-        
+
         if (vendorResult.length > 0) {
           vendorInfo = {
             id: vendorResult[0].id,
@@ -101,13 +101,13 @@ export async function GET(
           };
         }
       }
-      
+
       return NextResponse.json({
         ...expense,
         category: category && category.id ? category : null,
         vendorDetails: vendorInfo,
       });
-      
+
     } catch (error) {
       console.error('Error fetching expense:', error);
       return NextResponse.json(
@@ -120,26 +120,26 @@ export async function GET(
 
 // PUT /api/expenses/[expenseId] - Update an expense
 export async function PUT(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Validate and parse the expense ID
       const { expenseId } = await params;
       const validationResult = expenseParamsSchema.safeParse({ expenseId });
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Invalid expense ID' },
           { status: 400 }
         );
       }
-      
+
       const id = parseInt(expenseId);
-      
+
       // Check if the expense exists and belongs to the company
       const existingExpense = await db
         .select()
@@ -152,41 +152,41 @@ export async function PUT(
           )
         )
         .limit(1);
-      
+
       if (existingExpense.length === 0) {
         return NextResponse.json(
           { message: 'Expense not found' },
           { status: 404 }
         );
       }
-      
+
       // Validate and parse the request body
       const body = await request.json();
-      
+
       // The expenseSchema will automatically coerce string dates to Date objects
       const bodyValidation = expenseSchema.safeParse(body);
-      
+
       if (!bodyValidation.success) {
         return NextResponse.json(
           { message: 'Validation failed', errors: bodyValidation.error.format() },
           { status: 400 }
         );
       }
-      
-      const { 
-        categoryId, 
+
+      const {
+        categoryId,
         vendorId,
-        vendor, 
-        description, 
-        amount, 
-        currency, 
-        expenseDate, 
-        receiptUrl, 
-        status, 
-        recurring, 
-        nextDueDate 
+        vendor,
+        description,
+        amount,
+        currency,
+        expenseDate,
+        receiptUrl,
+        status,
+        recurring,
+        nextDueDate
       } = bodyValidation.data;
-      
+
       // Check if category exists and belongs to the company (if provided)
       if (categoryId) {
         const existingCategory = await db
@@ -200,7 +200,7 @@ export async function PUT(
             )
           )
           .limit(1);
-        
+
         if (existingCategory.length === 0) {
           return NextResponse.json(
             { message: 'Category not found or does not belong to your company' },
@@ -208,7 +208,7 @@ export async function PUT(
           );
         }
       }
-      
+
       // Check if vendor exists and belongs to the company (if provided)
       let existingVendor = null;
       if (vendorId) {
@@ -223,7 +223,7 @@ export async function PUT(
             )
           )
           .limit(1);
-        
+
         if (existingVendor.length === 0) {
           return NextResponse.json(
             { message: 'Vendor not found or does not belong to your company' },
@@ -231,9 +231,9 @@ export async function PUT(
           );
         }
       }
-      
+
       // Update the expense - format dates for database
-      const [updatedExpense] = await db
+      const [updateResult] = await db
         .update(expenses)
         .set({
           categoryId: categoryId || null,
@@ -254,9 +254,10 @@ export async function PUT(
             eq(expenses.id, id),
             eq(expenses.companyId, companyId)
           )
-        )
-        .returning();
-      
+        );
+
+      const [updatedExpense] = await db.select().from(expenses).where(eq(expenses.id, id));
+
       // Get category for response
       let category = null;
       if (updatedExpense.categoryId) {
@@ -265,7 +266,7 @@ export async function PUT(
           .from(expenseCategories)
           .where(eq(expenseCategories.id, updatedExpense.categoryId))
           .limit(1);
-        
+
         if (categoryResult.length > 0) {
           category = {
             id: categoryResult[0].id,
@@ -273,7 +274,7 @@ export async function PUT(
           };
         }
       }
-      
+
       // Get vendor information if vendorId is provided
       let vendorInfo = null;
       if (updatedExpense.vendorId) {
@@ -282,7 +283,7 @@ export async function PUT(
           .from(vendors)
           .where(eq(vendors.id, updatedExpense.vendorId))
           .limit(1);
-        
+
         if (vendorResult.length > 0) {
           vendorInfo = {
             id: vendorResult[0].id,
@@ -290,13 +291,13 @@ export async function PUT(
           };
         }
       }
-      
+
       return NextResponse.json({
         ...updatedExpense,
         category,
         vendorDetails: vendorInfo,
       });
-      
+
     } catch (error) {
       console.error('Error updating expense:', error);
       return NextResponse.json(
@@ -309,26 +310,26 @@ export async function PUT(
 
 // DELETE /api/expenses/[expenseId] - Soft delete an expense
 export async function DELETE(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
   return withAuth<any>(request, async (authInfo) => {
     try {
       const { companyId } = authInfo;
-      
+
       // Validate and parse the expense ID
       const { expenseId } = await params;
       const validationResult = expenseParamsSchema.safeParse({ expenseId });
-      
+
       if (!validationResult.success) {
         return NextResponse.json(
           { message: 'Invalid expense ID' },
           { status: 400 }
         );
       }
-      
+
       const id = parseInt(expenseId);
-      
+
       // Check if the expense exists and belongs to the company
       const existingExpense = await db
         .select()
@@ -341,14 +342,14 @@ export async function DELETE(
           )
         )
         .limit(1);
-      
+
       if (existingExpense.length === 0) {
         return NextResponse.json(
           { message: 'Expense not found' },
           { status: 404 }
         );
       }
-      
+
       // Soft delete the expense
       await db
         .update(expenses)
@@ -362,9 +363,9 @@ export async function DELETE(
             eq(expenses.companyId, companyId)
           )
         );
-      
+
       return NextResponse.json({ message: 'Expense deleted successfully' });
-      
+
     } catch (error) {
       console.error('Error deleting expense:', error);
       return NextResponse.json(
