@@ -91,6 +91,21 @@ export const getInvoiceSummary = async (
       )
     );
 
+  // Get total partially paid invoices
+  const [partiallyPaidResult] = await db
+    .select({
+      count: count(),
+      total: sum(sql<number>`CAST(${invoices.total} AS DECIMAL)`),
+      totalPaid: sum(sql<number>`CAST(${invoices.amountPaid} AS DECIMAL)`),
+    })
+    .from(invoices)
+    .where(
+      and(
+        baseConditions,
+        eq(invoices.status, 'partially_paid')
+      )
+    );
+
   // Calculate trends if requested and if dates are provided
   let trends = undefined;
 
@@ -191,6 +206,12 @@ export const getInvoiceSummary = async (
     draft: {
       count: Number(draftResult?.count || 0),
       total: Number(draftResult?.total || 0),
+    },
+    partiallyPaid: {
+      count: Number(partiallyPaidResult?.count || 0),
+      total: Number(partiallyPaidResult?.total || 0),
+      totalPaid: Number(partiallyPaidResult?.totalPaid || 0),
+      balanceDue: Number(partiallyPaidResult?.total || 0) - Number(partiallyPaidResult?.totalPaid || 0),
     },
     trends,
     dateRange: startDate && endDate ? { startDate, endDate } : undefined

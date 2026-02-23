@@ -59,7 +59,7 @@ interface Invoice {
   companyId: number;
   clientId: number;
   invoiceNumber: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
   issueDate: string;
   dueDate: string;
   subtotal: string;
@@ -90,10 +90,12 @@ interface InvoiceFormProps {
 const formSchema = z.object({
   clientId: z.number(),
   invoiceNumber: z.string(),
-  status: z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
+  status: z.enum(['draft', 'sent', 'paid', 'partially_paid', 'overdue', 'cancelled']),
   issueDate: z.date(),
   dueDate: z.date(),
   taxRate: z.number(),
+  discountType: z.enum(['percentage', 'fixed']).nullable().optional(),
+  discountValue: z.number().min(0).optional(),
   notes: z.string().optional(),
   items: z.array(z.any()).optional(),
 });
@@ -114,7 +116,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
   const [total, setTotal] = useState(0);
   const [company, setCompany] = useState<Company | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
-  
+
   const isEditing = !!initialData?.id;
 
   // Set up form default values
@@ -125,6 +127,8 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
     issueDate: initialData?.issueDate ? new Date(initialData.issueDate) : new Date(),
     dueDate: initialData?.dueDate ? new Date(initialData.dueDate) : new Date(),
     taxRate: initialData?.tax ? parseFloat(initialData.tax) : 0,
+    discountType: (initialData as any)?.discountType ?? null,
+    discountValue: (initialData as any)?.discountValue ? parseFloat((initialData as any).discountValue) : 0,
     notes: initialData?.notes ?? '',
     items: []
   };
@@ -150,11 +154,11 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
       setIsLoadingClients(true);
       try {
         const response = await fetch('/api/clients');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch clients');
         }
-        
+
         const data = await response.json();
         setClients(data.data);
       } catch (error) {
@@ -164,7 +168,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
         setIsLoadingClients(false);
       }
     };
-    
+
     fetchClients();
   }, []);
 
@@ -174,11 +178,11 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
       setIsLoadingCompany(true);
       try {
         const response = await fetch('/api/companies/current');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch company information');
         }
-        
+
         const data = await response.json();
         setCompany(data);
       } catch (error) {
@@ -188,7 +192,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
         setIsLoadingCompany(false);
       }
     };
-    
+
     fetchCompany();
   }, []);
 
@@ -202,9 +206,17 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
     if (items.length > 0) {
       const calculatedSubtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
       const taxRate = form.getValues('taxRate') || 0;
-      const taxAmount = (calculatedSubtotal * taxRate) / 100;
-      const calculatedTotal = calculatedSubtotal + taxAmount;
-      
+      const dType = form.getValues('discountType');
+      const dValue = form.getValues('discountValue') || 0;
+
+      let discount = 0;
+      if (dType && dValue > 0) {
+        discount = dType === 'percentage' ? calculatedSubtotal * (dValue / 100) : Math.min(dValue, calculatedSubtotal);
+      }
+      const taxableAmount = calculatedSubtotal - discount;
+      const taxAmount = (taxableAmount * taxRate) / 100;
+      const calculatedTotal = taxableAmount + taxAmount;
+
       setSubtotal(calculatedSubtotal);
       setTotal(calculatedTotal);
     } else {
@@ -213,12 +225,19 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
     }
   }, [items, form]);
 
-  // When tax changes, recalculate the total
+  // When tax or discount changes, recalculate the total
   const taxValue = form.watch('taxRate');
+  const discountTypeValue = form.watch('discountType');
+  const discountValueNum = form.watch('discountValue') || 0;
   useEffect(() => {
-    const taxAmount = (subtotal * (taxValue || 0)) / 100;
-    setTotal(subtotal + taxAmount);
-  }, [taxValue, subtotal]);
+    let discount = 0;
+    if (discountTypeValue && discountValueNum > 0) {
+      discount = discountTypeValue === 'percentage' ? subtotal * (discountValueNum / 100) : Math.min(discountValueNum, subtotal);
+    }
+    const taxableAmount = subtotal - discount;
+    const taxAmount = (taxableAmount * (taxValue || 0)) / 100;
+    setTotal(taxableAmount + taxAmount);
+  }, [taxValue, discountTypeValue, discountValueNum, subtotal]);
 
   // Handle adding/editing items
   const handleAddItem = () => {
@@ -256,7 +275,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
       // Add new item
       setItems([...items, itemWithAmount]);
     }
-    
+
     setShowItemForm(false);
     setEditingItem(null);
     setEditingItemIndex(null);
@@ -276,7 +295,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Format data according to API expectations
       const formattedValues = {
@@ -286,8 +305,10 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
         dueDate: format(values.dueDate, 'yyyy-MM-dd'),
         // Convert appropriate values to strings
         taxRate: values.taxRate.toString(),
+        discountType: values.discountType || null,
+        discountValue: values.discountValue || 0,
       };
-      
+
       // Format items according to API expectations
       const formattedItems = items.map(item => {
         // Create a new object to control exactly what we send
@@ -306,13 +327,13 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
         ...formattedValues,
         items: formattedItems,
       };
-      
-      const url = isEditing 
-        ? `/api/invoices/${initialData!.id}` 
+
+      const url = isEditing
+        ? `/api/invoices/${initialData!.id}`
         : '/api/invoices';
-      
+
       const method = isEditing ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -320,15 +341,15 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
         },
         body: JSON.stringify(dataToSubmit),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         console.error("API validation error:", error);
         throw new Error(error.message || 'Something went wrong');
       }
-      
+
       const invoice = await response.json();
-      
+
       if (onSuccess) {
         onSuccess(invoice);
       } else {
@@ -417,6 +438,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="sent">Sent</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="partially_paid">Partially Paid</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
@@ -494,6 +516,60 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
           />
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <FormField
+            control={form.control}
+            name="discountType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Discount Type</FormLabel>
+                <Select
+                  disabled={isSubmitting}
+                  onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
+                  defaultValue={field.value || 'none'}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No discount" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {discountTypeValue && (
+            <FormField
+              control={form.control}
+              name="discountValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {discountTypeValue === 'percentage' ? 'Discount (%)' : 'Discount Amount'}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+        </div>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-md font-medium">Invoice Items</CardTitle>
@@ -551,10 +627,31 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
                 <div className="text-muted-foreground">Subtotal:</div>
                 <div className="text-right">{formatCurrency(subtotal, company?.defaultCurrency)}</div>
               </div>
+              {discountTypeValue && discountValueNum > 0 && (
+                <div className="grid grid-cols-2 gap-8 text-sm w-48">
+                  <div className="text-muted-foreground">
+                    Discount{discountTypeValue === 'percentage' ? ` (${discountValueNum}%)` : ''}:
+                  </div>
+                  <div className="text-right text-red-500">
+                    -{formatCurrency(
+                      discountTypeValue === 'percentage'
+                        ? subtotal * (discountValueNum / 100)
+                        : Math.min(discountValueNum, subtotal),
+                      company?.defaultCurrency
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-8 text-sm w-48">
                 <div className="text-muted-foreground">Tax ({taxValue}%):</div>
                 <div className="text-right">
-                  {formatCurrency((subtotal * taxValue) / 100, company?.defaultCurrency)}
+                  {(() => {
+                    let discount = 0;
+                    if (discountTypeValue && discountValueNum > 0) {
+                      discount = discountTypeValue === 'percentage' ? subtotal * (discountValueNum / 100) : Math.min(discountValueNum, subtotal);
+                    }
+                    return formatCurrency(((subtotal - discount) * taxValue) / 100, company?.defaultCurrency);
+                  })()}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-8 font-medium w-48">
@@ -583,12 +680,12 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
             </FormItem>
           )}
         />
-        
+
         <div className="flex justify-end gap-2">
           {onCancel && (
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onCancel}
               disabled={isSubmitting}
             >
@@ -596,8 +693,8 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
             </Button>
           )}
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting 
-              ? (isEditing ? 'Updating...' : 'Creating...') 
+            {isSubmitting
+              ? (isEditing ? 'Updating...' : 'Creating...')
               : (isEditing ? 'Update Invoice' : 'Create Invoice')
             }
           </Button>

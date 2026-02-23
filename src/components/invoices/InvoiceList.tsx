@@ -29,7 +29,7 @@ interface Invoice {
   id: number;
   invoiceNumber: string;
   clientId: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
   issueDate: string;
   dueDate: string;
   total: string;
@@ -69,16 +69,16 @@ export function InvoiceList({ className }: InvoiceListProps) {
       const response = await fetch(`/api/invoices?${params}`, {
         credentials: 'include',
       });
-      
+
       if (response.status === 401) {
         console.log('User not authenticated for invoices');
         return;
       }
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch invoices');
       }
-      
+
       const data = await response.json();
       setInvoices(data.data || []);
       setTotalPages(Math.ceil(data.total / 10));
@@ -119,6 +119,8 @@ export function InvoiceList({ className }: InvoiceListProps) {
         return 'bg-blue-100 hover:bg-blue-200 text-blue-800';
       case 'paid':
         return 'bg-green-100 hover:bg-green-200 text-green-800';
+      case 'partially_paid':
+        return 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800';
       case 'overdue':
         return 'bg-red-100 hover:bg-red-200 text-red-800';
       case 'cancelled':
@@ -159,6 +161,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="sent">Sent</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="partially_paid">Partially Paid</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
@@ -174,7 +177,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('invoiceNumber')}
               >
@@ -183,7 +186,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                 )}
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('clientName')}
               >
@@ -192,7 +195,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                 )}
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('issueDate')}
               >
@@ -201,7 +204,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                 )}
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('dueDate')}
               >
@@ -210,7 +213,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                 )}
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('status')}
               >
@@ -219,7 +222,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                 )}
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="text-right cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('total')}
               >
@@ -245,7 +248,7 @@ export function InvoiceList({ className }: InvoiceListProps) {
               </TableRow>
             ) : (
               invoices.map((invoice) => (
-                <TableRow 
+                <TableRow
                   key={invoice.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => router.push(`/invoices/${invoice.id}`)}
@@ -256,7 +259,9 @@ export function InvoiceList({ className }: InvoiceListProps) {
                   <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                   <TableCell>
                     <Badge className={getStatusBadgeColor(invoice.status)}>
-                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                      {invoice.status === 'partially_paid'
+                        ? 'Partially Paid'
+                        : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

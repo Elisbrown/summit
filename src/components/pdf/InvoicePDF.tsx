@@ -176,6 +176,10 @@ interface InvoicePDFProps {
     subtotal: number | string;
     tax: number | string;
     total: number | string;
+    discountType?: string | null;
+    discountValue?: number | string | null;
+    discountAmount?: number | string | null;
+    amountPaid?: number | string | null;
     notes?: string;
     currency?: string;
     client: {
@@ -213,9 +217,9 @@ const formatDate = (date: string | Date) => {
 
 const formatCurrency = (amount: string | number, currency: string = 'XAF') => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
+
   if (isNaN(numericAmount)) return `${currency} 0`;
-  
+
   // Use a map for specific locales and settings
   const currencyConfigs: Record<string, { locale: string; decimals: number }> = {
     'XAF': { locale: 'en-US', decimals: 0 },
@@ -227,9 +231,9 @@ const formatCurrency = (amount: string | number, currency: string = 'XAF') => {
   };
 
   const config = currencyConfigs[currency] || { locale: 'en-US', decimals: 2 };
-  
-  return new Intl.NumberFormat(config.locale, { 
-    style: 'currency', 
+
+  return new Intl.NumberFormat(config.locale, {
+    style: 'currency',
     currency: currency,
     minimumFractionDigits: config.decimals,
     maximumFractionDigits: config.decimals
@@ -239,7 +243,7 @@ const formatCurrency = (amount: string | number, currency: string = 'XAF') => {
 // Component for creating PDF
 export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, preview = false }) => {
   const currency = invoice.currency || invoice.company?.defaultCurrency || 'XAF';
-  
+
   const document = (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -309,7 +313,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, preview = false
               <Text>Amount</Text>
             </View>
           </View>
-          
+
           {invoice.items.map((item, index) => (
             <View key={item.id} style={index === invoice.items.length - 1 ? styles.tableRowLast : styles.tableRow}>
               <View style={[styles.tableCellBordered, styles.col1]}>
@@ -333,6 +337,16 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, preview = false
             <Text style={styles.totalLabel}>Subtotal:</Text>
             <Text>{formatCurrency(invoice.subtotal, currency)}</Text>
           </View>
+          {invoice.discountAmount && parseFloat(String(invoice.discountAmount)) > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>
+                Discount{invoice.discountType === 'percentage' && invoice.discountValue
+                  ? ` (${invoice.discountValue}%)`
+                  : ''}:
+              </Text>
+              <Text>-{formatCurrency(invoice.discountAmount, currency)}</Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Tax:</Text>
             <Text>{formatCurrency(invoice.tax, currency)}</Text>
@@ -341,6 +355,23 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, preview = false
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalLabel}>{formatCurrency(invoice.total, currency)}</Text>
           </View>
+          {invoice.amountPaid && parseFloat(String(invoice.amountPaid)) > 0 && (
+            <>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Amount Paid:</Text>
+                <Text>{formatCurrency(invoice.amountPaid, currency)}</Text>
+              </View>
+              <View style={styles.totalRowEmphasis}>
+                <Text style={styles.totalLabel}>Balance Due:</Text>
+                <Text style={styles.totalLabel}>
+                  {formatCurrency(
+                    parseFloat(String(invoice.total)) - parseFloat(String(invoice.amountPaid)),
+                    currency
+                  )}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {invoice.company?.bankAccount && (

@@ -23,7 +23,7 @@ type InvoiceDetailResponse = {
   companyId: number;
   clientId: number;
   invoiceNumber: string;
-  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  status: "draft" | "sent" | "paid" | "partially_paid" | "overdue" | "cancelled";
   issueDate: string;
   dueDate: string;
   subtotal: string;
@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
 
       // Add status filter if provided
       if (status && status !== 'all') {
-        if (['draft', 'sent', 'paid', 'overdue', 'cancelled'].includes(status)) {
+        if (['draft', 'sent', 'paid', 'partially_paid', 'overdue', 'cancelled'].includes(status)) {
           conditions = and(
             conditions,
-            eq(invoices.status, status as 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled')
+            eq(invoices.status, status as 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled')
           );
         }
       }
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { clientId, invoiceNumber, status, issueDate, dueDate, tax: taxInput, notes, items } = validationResult.data;
+      const { clientId, invoiceNumber, status, issueDate, dueDate, tax: taxInput, notes, items, discountType, discountValue: discountInput } = validationResult.data;
 
       // Check if client exists and belongs to the company
       const existingClient = await db
@@ -237,9 +237,22 @@ export async function POST(request: NextRequest) {
         const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
         return sum + (quantity * unitPrice);
       }, 0);
+
+      // Calculate discount
+      const discountVal = typeof discountInput === 'string' ? parseFloat(discountInput) : (discountInput || 0);
+      let discountAmount = 0;
+      if (discountType && discountVal > 0) {
+        if (discountType === 'percentage') {
+          discountAmount = subtotal * (discountVal / 100);
+        } else {
+          discountAmount = Math.min(discountVal, subtotal); // Fixed discount can't exceed subtotal
+        }
+      }
+
+      const taxableAmount = subtotal - discountAmount;
       const taxRate = typeof taxInput === 'string' ? parseFloat(taxInput) : (taxInput || 0);
-      const tax = taxRate ? subtotal * (taxRate / 100) : 0;
-      const total = subtotal + tax;
+      const tax = taxRate ? taxableAmount * (taxRate / 100) : 0;
+      const total = taxableAmount + tax;
 
       // Insert invoice using a simple query approach to avoid schema issues
       const now = new Date();
@@ -259,6 +272,10 @@ export async function POST(request: NextRequest) {
         taxRate: taxRate.toFixed(2),
         tax: tax.toFixed(2),
         total: total.toFixed(2),
+        discountType: discountType || null,
+        discountValue: discountVal.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        amountPaid: '0',
         notes: notes || null,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),

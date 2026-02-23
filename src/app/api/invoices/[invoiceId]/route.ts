@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { invoices, invoiceItems, clients, companies } from '@/lib/db/schema';
+import { invoices, invoiceItems, clients, companies, payments } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { invoiceSchema } from '@/lib/validations/invoice';
 import { ZodError } from 'zod';
@@ -82,12 +82,24 @@ export async function GET(
         .from(invoiceItems)
         .where(eq(invoiceItems.invoiceId, id));
 
+      // Get payments for this invoice
+      const invoicePayments = await db
+        .select()
+        .from(payments)
+        .where(
+          and(
+            eq(payments.invoiceId, id),
+            eq(payments.softDelete, false)
+          )
+        );
+
       // Format response
       const response = {
         ...invoiceWithData.invoice,
         client: invoiceWithData.client,
         company: invoiceWithData.company,
         items,
+        payments: invoicePayments,
       };
 
       return NextResponse.json(response);
@@ -147,10 +159,24 @@ export async function PUT(
         (sum, item) => sum + item.quantity * parseFloat(item.unitPrice.toString()),
         0
       );
+
+      // Calculate discount
+      const discountVal = validatedData.discountValue || 0;
+      const discountType = validatedData.discountType || null;
+      let discountAmount = 0;
+      if (discountType && discountVal > 0) {
+        if (discountType === 'percentage') {
+          discountAmount = subtotal * (discountVal / 100);
+        } else {
+          discountAmount = Math.min(discountVal, subtotal);
+        }
+      }
+
+      const taxableAmount = subtotal - discountAmount;
       // Ensure tax is a percentage between 0-100, not a multiplier
       const taxPercentage = validatedData.taxRate || validatedData.tax || 0;
-      const tax = (subtotal * taxPercentage) / 100;
-      const total = subtotal + tax;
+      const tax = (taxableAmount * taxPercentage) / 100;
+      const total = taxableAmount + tax;
 
       // Handle Income Logic
       // If status is "paid", ensuring we have an income record
@@ -158,7 +184,6 @@ export async function PUT(
       const isPaid = validatedData.status === 'paid';
       const wasPaid = existingInvoice[0].status === 'paid';
 
-      // Update invoice
       // Update invoice
       await db
         .update(invoices)
@@ -172,12 +197,17 @@ export async function PUT(
           taxRate: taxPercentage.toString(),
           tax: tax.toString(),
           total: total.toString(),
+          discountType: discountType,
+          discountValue: discountVal.toString(),
+          discountAmount: discountAmount.toString(),
           notes: validatedData.notes || null,
           updatedAt: new Date().toISOString(),
           // Set paidAt if status is changed to paid
           paidAt: isPaid && !wasPaid
             ? new Date().toISOString()
             : (isPaid ? existingInvoice[0].paidAt : null), // Reset if not paid
+          // Set amountPaid to total if manually marked as paid
+          ...(isPaid && !wasPaid ? { amountPaid: total.toString() } : {}),
         })
         .where(
           and(

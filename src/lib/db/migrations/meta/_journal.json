@@ -8,6 +8,13 @@
       "when": 1770926515724,
       "tag": "0000_new_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1771883397474,
+      "tag": "0001_plain_silvermane",
+      "breakpoints": true
     }
   ]
 }
