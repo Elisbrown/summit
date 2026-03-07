@@ -153,7 +153,7 @@ export function InvoiceForm({ initialData, onSuccess, onCancel }: InvoiceFormPro
     const fetchClients = async () => {
       setIsLoadingClients(true);
       try {
-        const response = await fetch('/api/clients');
+        const response = await fetch('/api/clients?limit=1000');
 
         if (!response.ok) {
           throw new Error('Failed to fetch clients');
